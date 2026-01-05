@@ -70,7 +70,12 @@ const SidebarLink = ({
                         )}
                     >
                         <span className="w-5 h-5">{icon}</span>
-                        <p className={clsx("pt-px", isIconOnly && "hidden")}>
+                        <p
+                            className={clsx(
+                                "pt-px truncate text-nowrap text-ellipsis overflow-hidden",
+                                isIconOnly && "hidden"
+                            )}
+                        >
                             {label}
                         </p>
                     </div>
@@ -78,8 +83,7 @@ const SidebarLink = ({
                         <div
                             className={clsx(
                                 "absolute rounded-full badge p-0.5 badge-xs badge-accent",
-                                "right-0",
-                                isIconOnly && "top-0"
+                                isIconOnly ? "top-0 right-0" : "right-3"
                             )}
                         >
                             {notifications >= 99 ? "99+" : notifications}

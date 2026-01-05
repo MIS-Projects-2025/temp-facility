@@ -1,10 +1,9 @@
 import { useState, useEffect, useMemo } from "react";
-import { usePage, Link } from "@inertiajs/react";
+import { usePage } from "@inertiajs/react";
 import { Transition } from "@headlessui/react";
 import clsx from "clsx";
 import { useThemeStore } from "@/Store/themeStore";
 import { DARK_THEME_NAME } from "@/Constants/colors";
-import Sidebar from "./SideBar";
 import SidebarLink from "./SidebarLink";
 import { Fragment } from "react";
 
@@ -49,9 +48,6 @@ export default function Dropdown({
 
     const hoverColor =
         theme === DARK_THEME_NAME ? "hover:bg-base-200" : "hover:bg-base-300";
-
-    const activeColor =
-        theme === DARK_THEME_NAME ? "bg-base-200" : "bg-base-300 text-primary";
 
     return (
         <div className="">

@@ -91,7 +91,7 @@ export default function Sidebar() {
             >
                 <div className={clsx("flex")}>
                     <Link
-                        href={route("dashboard")}
+                        // href={route("dashboard")}
                         className={clsx(
                             "flex-1 flex items-center pl-2.5 text-lg font-bold",
                             isSidebarCollapsed && "hidden"

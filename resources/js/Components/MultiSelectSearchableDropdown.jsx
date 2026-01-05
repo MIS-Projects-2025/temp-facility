@@ -1,0 +1,407 @@
+import clsx from "clsx";
+import { useId, useState, useEffect, useMemo, memo, useRef } from "react";
+import { FaTimes, FaTrash } from "react-icons/fa";
+import { Tooltip } from "react-tooltip";
+import { BiSelectMultiple } from "react-icons/bi";
+import Pagination from "./Pagination";
+
+const MultiSelectSearchableDropdown = memo(
+    function MultiSelectSearchableDropdown({
+        formFieldName,
+        options = [],
+        onChange,
+        defaultSelectedOptions = [],
+        controlledSelectedOptions = [],
+        isLoading = false,
+        contentClassName = "",
+        itemName = "options",
+        prompt = "",
+        debounceDelay = 200,
+        singleSelect = false,
+        disableSearch = false,
+        disableTooltip = false,
+        buttonSelectorClassName = "w-52",
+        onFocus = () => {},
+        onSearchChange,
+        useModal = false,
+        modalRef = null,
+        disableSelectedContainer = false,
+        returnKey = "value",
+        paginated = false,
+        links = null,
+        disableClearSelection = false,
+        currentPage = null,
+        goToPage = () => {},
+    }) {
+        const id = useId();
+        const wrapperRef = useRef(null);
+
+        const [open, setOpen] = useState(false);
+        const [selectedOptions, setSelectedOptions] = useState(
+            defaultSelectedOptions
+        );
+        console.log({ selectedOptions });
+        const [searchInput, setSearchInput] = useState("");
+        const [debouncedSearch, setDebouncedSearch] = useState("");
+
+        useEffect(() => {
+            if (controlledSelectedOptions.length > 0) {
+                setSelectedOptions(controlledSelectedOptions);
+            }
+        }, [controlledSelectedOptions]);
+
+        useEffect(() => {
+            const timer = setTimeout(() => {
+                setDebouncedSearch(searchInput);
+                onSearchChange?.(searchInput);
+            }, debounceDelay);
+            return () => clearTimeout(timer);
+        }, [searchInput, debounceDelay, onSearchChange]);
+
+        const getSelectedValues = (values) => {
+            if (returnKey === "value") return values;
+            return values.map(
+                (val) => options.find((opt) => opt.value === val)?.[returnKey]
+            );
+        };
+
+        const handleChange = (e) => {
+            const value = e.target.value;
+            let updatedValues;
+            if (singleSelect) {
+                updatedValues = [value];
+            } else {
+                const isChecked = e.target.checked;
+                updatedValues = isChecked
+                    ? [...selectedOptions, value]
+                    : selectedOptions.filter((item) => item !== value);
+            }
+            setSelectedOptions(updatedValues);
+            onChange(getSelectedValues(updatedValues));
+        };
+
+        const handleSelectAll = () => {
+            const allValues = options.map((item) => item.value);
+            setSelectedOptions(allValues);
+            onChange(getSelectedValues(allValues));
+        };
+
+        const handleRemoveOption = (value) => {
+            const updatedValues = selectedOptions.filter(
+                (item) => item !== value
+            );
+            setSelectedOptions(updatedValues);
+            onChange(getSelectedValues(updatedValues));
+        };
+
+        const handleClearSelectionClick = (e) => {
+            e.preventDefault();
+            setSelectedOptions([]);
+            onChange(getSelectedValues([]));
+        };
+
+        const isClearSelectionEnabled = selectedOptions.length > 0;
+
+        const getButtonLabel = () => {
+            const count = selectedOptions.length;
+            if (count === 0) return prompt;
+            if (singleSelect || count === 1) return selectedOptions[0];
+            const [first, ...rest] = selectedOptions;
+            return `${first} and ${count - 1} more`;
+        };
+
+        const filteredOptions = useMemo(() => {
+            if (onSearchChange) return options;
+            if (!debouncedSearch.trim()) return options;
+            const search = debouncedSearch.toLowerCase();
+            return options.filter(
+                (option) =>
+                    option.value.toLowerCase().includes(search) ||
+                    (option.label &&
+                        option.label.toLowerCase().includes(search))
+            );
+        }, [debouncedSearch, options, onSearchChange]);
+
+        const highlightMatch = (option) => {
+            const search = debouncedSearch.trim().toLowerCase();
+            const regex = new RegExp(`(${search})`, "i");
+
+            const highlightText = (text) =>
+                text.split(regex).map((part, i) =>
+                    part.toLowerCase() === search ? (
+                        <span key={i} className="text-primary font-medium">
+                            {part}
+                        </span>
+                    ) : (
+                        <span key={i}>{part}</span>
+                    )
+                );
+
+            if (option.label && option.label !== option.value) {
+                return (
+                    <div>
+                        <div className="w-10">
+                            {highlightText(option.value)}
+                        </div>
+                        <div className="opacity-75 text-xs">
+                            {highlightText(option.label)}
+                        </div>
+                    </div>
+                );
+            }
+
+            return (
+                <span className="text-value">
+                    {highlightText(option.value)}
+                </span>
+            );
+        };
+
+        const tooltipID = `${id}-${itemName}-tooltip`;
+
+        const searchBar = () => (
+            <>
+                {!disableSearch && (
+                    <div className="relative w-full mb-2">
+                        <input
+                            type="text"
+                            value={searchInput}
+                            onChange={(e) => setSearchInput(e.target.value)}
+                            placeholder="Search..."
+                            className="input input-sm w-full pr-8"
+                        />
+                        {searchInput && (
+                            <button
+                                onMouseDown={(e) => {
+                                    e.preventDefault();
+                                    setSearchInput("");
+                                }}
+                                className="absolute right-2 top-1/2 -translate-y-1/2 text-base-content/70 hover:text-base-content"
+                            >
+                                <FaTimes />
+                            </button>
+                        )}
+                    </div>
+                )}
+            </>
+        );
+
+        const promptLabel = () => (
+            <>
+                {prompt && (
+                    <div className="font-semibold text-center mb-2">
+                        {prompt}
+                    </div>
+                )}
+            </>
+        );
+
+        const content = (showSearchInput = true) => (
+            <>
+                {showSearchInput && searchBar()}
+
+                <div className="flex items-center mb-2 gap-2">
+                    {!disableClearSelection && (
+                        <button
+                            onClick={handleClearSelectionClick}
+                            onMouseDown={(e) => e.preventDefault()}
+                            disabled={!isClearSelectionEnabled}
+                            className="flex items-center gap-2 text-warning w-full px-2 py-1 rounded-lg hover:bg-primary/10 disabled:opacity-50"
+                        >
+                            <FaTrash />
+                            Clear selection
+                        </button>
+                    )}
+                    {!singleSelect && (
+                        <button
+                            onClick={handleSelectAll}
+                            onMouseDown={(e) => e.preventDefault()}
+                            className="flex items-center gap-2 text-primary w-full px-2 py-1 rounded-lg hover:bg-primary/10"
+                        >
+                            <BiSelectMultiple />
+                            Select All
+                        </button>
+                    )}
+                </div>
+
+                <div className={clsx("flex w-full", contentClassName)}>
+                    <div className="overflow-y-auto w-full flex flex-col">
+                        {filteredOptions.length === 0 ? (
+                            <div className="p-2 text-sm text-gray-500">
+                                No matches found
+                            </div>
+                        ) : (
+                            filteredOptions.map((option) => (
+                                <label
+                                    key={option.value}
+                                    className="flex items-center whitespace-nowrap cursor-pointer px-2 py-1 hover:bg-primary/10 rounded"
+                                >
+                                    <input
+                                        type={
+                                            singleSelect ? "radio" : "checkbox"
+                                        }
+                                        name={formFieldName}
+                                        value={option.value}
+                                        checked={selectedOptions.includes(
+                                            option.value
+                                        )}
+                                        onChange={handleChange}
+                                        className={clsx(
+                                            singleSelect
+                                                ? "radio radio-primary cursor-pointer"
+                                                : "checkbox checkbox-sm checkbox-primary cursor-pointer"
+                                        )}
+                                    />
+                                    <span className="ml-2">
+                                        {highlightMatch(option)}
+                                    </span>
+                                </label>
+                            ))
+                        )}
+                    </div>
+
+                    {!disableSelectedContainer && (
+                        <div className="w-full flex flex-col overflow-y-auto p-2">
+                            {selectedOptions.length === 0 ? (
+                                <div className="text-sm text-gray-500">
+                                    currently none selected
+                                </div>
+                            ) : (
+                                selectedOptions.map((option) => (
+                                    <button
+                                        key={option}
+                                        onClick={() =>
+                                            handleRemoveOption(option)
+                                        }
+                                        onMouseDown={(e) => e.preventDefault()}
+                                        className="text-left hover:text-error px-2 py-1 w-full rounded"
+                                    >
+                                        {option}
+                                    </button>
+                                ))
+                            )}
+                        </div>
+                    )}
+                </div>
+                {paginated && (
+                    <Pagination
+                        showMeta={false}
+                        links={links}
+                        currentPage={currentPage}
+                        goToPage={goToPage}
+                        filteredTotal={options.length || 0}
+                        contentClassName="bg-base-100 justify-center"
+                    />
+                )}
+            </>
+        );
+
+        if (!useModal) {
+            return (
+                <div
+                    ref={wrapperRef}
+                    className="dropdown"
+                    onFocus={onFocus}
+                    onBlur={(e) => {
+                        if (!wrapperRef.current?.contains(e.relatedTarget)) {
+                            setOpen(false);
+                        }
+                    }}
+                >
+                    {!disableTooltip && (
+                        <Tooltip
+                            id={tooltipID}
+                            className="custom-tooltip"
+                            hidden={selectedOptions.length === 0}
+                        >
+                            <div className="text-left p-2 flex flex-wrap gap-1">
+                                {selectedOptions.map((option) => (
+                                    <span
+                                        key={option}
+                                        className="border border-neutral-content/40 px-1 rounded-lg"
+                                    >
+                                        {option}
+                                    </span>
+                                ))}
+                            </div>
+                        </Tooltip>
+                    )}
+                    <div
+                        tabIndex={0}
+                        role="button"
+                        data-tooltip-id={tooltipID}
+                        onClick={() => setOpen(true)}
+                        onFocus={() => setOpen(true)}
+                        className={clsx(
+                            "btn border border-base-content/20",
+                            buttonSelectorClassName
+                        )}
+                    >
+                        {getButtonLabel()}
+                    </div>
+                    {open && (
+                        <>
+                            <ul
+                                tabIndex="-1"
+                                className="dropdown-content menu z-1 w-100 flex flex-col bg-base-100 rounded-box p-2 shadow-sm"
+                            >
+                                {promptLabel()}
+                                {isLoading ? (
+                                    <div className="flex justify-center gap-2 my-auto">
+                                        <div className="loading loading-spinner"></div>
+                                        <div>loading {itemName}</div>
+                                    </div>
+                                ) : (
+                                    content()
+                                )}
+                            </ul>
+                        </>
+                    )}
+                </div>
+            );
+        }
+
+        return (
+            <dialog
+                ref={modalRef}
+                onFocus={onFocus}
+                id="multiSelectSearchableDropdown-modal"
+                className="modal"
+            >
+                <div className="modal-box w-100">
+                    {selectedOptions.length > 0 && (
+                        <div className="my-1 text-center">
+                            currently selected{" "}
+                            {selectedOptions.map((option) => (
+                                <span
+                                    key={option}
+                                    className="border border-neutral-content/40 px-1 rounded-lg"
+                                >
+                                    {option}
+                                </span>
+                            ))}
+                        </div>
+                    )}
+                    {promptLabel()}
+                    <div>
+                        {searchBar()}
+                        {isLoading ? (
+                            <div className="h-120 flex justify-center items-center flex-col gap-2">
+                                <div className="bg-red-500 loading loading-spinner"></div>
+                                <div>loading {itemName}</div>
+                            </div>
+                        ) : (
+                            content(false)
+                        )}
+                    </div>
+                </div>
+
+                <form method="dialog" className="modal-backdrop">
+                    <button>close</button>
+                </form>
+            </dialog>
+        );
+    }
+);
+
+export default MultiSelectSearchableDropdown;

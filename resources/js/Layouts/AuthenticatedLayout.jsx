@@ -3,15 +3,18 @@ import Sidebar from "@/Components/Sidebar/SideBar";
 import { usePage } from "@inertiajs/react";
 import { useEffect, useState } from "react";
 import Footer from "@/Components/Footer";
+import { useLocationStore } from "@/Store/locationStore";
 
 export default function AuthenticatedLayout({ header, children }) {
     const { url } = usePage();
     const { emp_data } = usePage().props;
-
+    const { fetchLocations } = useLocationStore();
     const [hasUserFetched, setHasUserFetched] = useState(false);
 
     useEffect(() => {
         if (!emp_data || hasUserFetched) return;
+
+        fetchLocations();
 
         setHasUserFetched(true);
     }, [emp_data, hasUserFetched]);
