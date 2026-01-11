@@ -9,15 +9,27 @@ use App\Http\Controllers\UtilityTrashController;
 use App\Http\Controllers\ChecklistItemsController;
 use App\Http\Controllers\CheckItemsController;
 use App\Http\Controllers\AssetsController;
+use App\Http\Controllers\AssetPmSchedulesController;
+use App\Http\Controllers\ChecklistItemSchedulesController;
+use App\Http\Controllers\SchedulesController;
+use App\Http\Controllers\GlobalPmSchedulesController;
+use App\Http\Controllers\GlobalPmController;
+use App\Http\Controllers\ChecklistsController;
 use App\Http\Controllers\HazardousWasteTurnOverLogSheetController;
 
 Route::middleware([ApiAuthMiddleware::class])
   ->name('api.')
   ->group(function () {
 
-    Route::prefix('location')->name('location.')->group(function () {
-      Route::get('/trend', [LocationController::class, 'getAllLocation'])
+    Route::prefix('locations')->name('locations.')->group(function () {
+      Route::get('/', [LocationController::class, 'getAllLocation'])
         ->name('index');
+      Route::patch('/bulk-update', [LocationController::class, 'bulkUpdate'])
+        ->name('bulkUpdate');
+      Route::post('/add', [LocationController::class, 'store'])
+        ->name('store');
+      Route::delete('/bulk-delete', [LocationController::class, 'massGenocide'])
+        ->name('massGenocide');
     });
 
     Route::prefix('utility-trash')->name('utility-trash.')->group(function () {
@@ -63,6 +75,12 @@ Route::middleware([ApiAuthMiddleware::class])
         ->name('delete');
       Route::patch('/{id}/update', [ChecklistItemsController::class, 'update'])
         ->name('update');
+      Route::get('/all-check-items', [ChecklistItemsController::class, 'getAllCheckItems'])
+        ->name('all-check-items');
+      Route::patch('/bulk-update', [ChecklistItemsController::class, 'bulkUpdate'])
+        ->name('bulkUpdate');
+      Route::delete('/bulk-delete', [ChecklistItemsController::class, 'massGenocide'])
+        ->name('massGenocide');
     });
 
     Route::prefix('check-items')->name('check-items.')->group(function () {
@@ -74,6 +92,8 @@ Route::middleware([ApiAuthMiddleware::class])
         ->name('delete');
       Route::patch('/{id}/update', [CheckItemsController::class, 'update'])
         ->name('update');
+      Route::patch('/bulk-update', [CheckItemsController::class, 'bulkUpdate'])
+        ->name('bulkUpdate');
     });
 
     Route::prefix('assets')->name('assets.')->group(function () {
@@ -84,6 +104,72 @@ Route::middleware([ApiAuthMiddleware::class])
       Route::delete('/{id}/delete', [AssetsController::class, 'destroy'])
         ->name('delete');
       Route::patch('/{id}/update', [AssetsController::class, 'update'])
+        ->name('update');
+    });
+
+    Route::prefix('schedules')->name('schedules.')->group(function () {
+      Route::get('/', [SchedulesController::class, 'index'])
+        ->name('index');
+      Route::post('/add', [SchedulesController::class, 'store'])
+        ->name('add');
+      Route::delete('/{id}/delete', [SchedulesController::class, 'destroy'])
+        ->name('delete');
+      Route::patch('/{id}/update', [SchedulesController::class, 'update'])
+        ->name('update');
+    });
+
+    Route::prefix('asset_pm_schedules')->name('asset_pm_schedules.')->group(function () {
+      Route::get('/', [AssetPmSchedulesController::class, 'index'])
+        ->name('index');
+      Route::post('/add', [AssetPmSchedulesController::class, 'store'])
+        ->name('add');
+      Route::delete('/{id}/delete', [AssetPmSchedulesController::class, 'destroy'])
+        ->name('delete');
+      Route::patch('/{id}/update', [AssetPmSchedulesController::class, 'update'])
+        ->name('update');
+    });
+
+    Route::prefix('checklist_item_schedules')->name('checklist_item_schedules.')->group(function () {
+      Route::get('/', [ChecklistItemSchedulesController::class, 'index'])
+        ->name('index');
+      Route::post('/add', [ChecklistItemSchedulesController::class, 'store'])
+        ->name('add');
+      Route::delete('/{id}/delete', [ChecklistItemSchedulesController::class, 'destroy'])
+        ->name('delete');
+      Route::patch('/{id}/update', [ChecklistItemSchedulesController::class, 'update'])
+        ->name('update');
+    });
+
+    Route::prefix('global_pm_schedules')->name('global_pm_schedules.')->group(function () {
+      Route::get('/', [GlobalPmSchedulesController::class, 'index'])
+        ->name('index');
+      Route::post('/add', [GlobalPmSchedulesController::class, 'store'])
+        ->name('add');
+      Route::delete('/{id}/delete', [GlobalPmSchedulesController::class, 'destroy'])
+        ->name('delete');
+      Route::patch('/{id}/update', [GlobalPmSchedulesController::class, 'update'])
+        ->name('update');
+    });
+
+    Route::prefix('global_pm')->name('global_pm.')->group(function () {
+      Route::get('/', [GlobalPmController::class, 'index'])
+        ->name('index');
+      Route::post('/add', [GlobalPmController::class, 'store'])
+        ->name('add');
+      Route::delete('/{id}/delete', [GlobalPmController::class, 'destroy'])
+        ->name('delete');
+      Route::patch('/{id}/update', [GlobalPmController::class, 'update'])
+        ->name('update');
+    });
+
+    Route::prefix('checklists')->name('checklists.')->group(function () {
+      Route::get('/', [ChecklistsController::class, 'getAllChecklists'])
+        ->name('index');
+      Route::post('/add', [ChecklistsController::class, 'store'])
+        ->name('add');
+      Route::delete('/{id}/delete', [ChecklistsController::class, 'destroy'])
+        ->name('delete');
+      Route::patch('/{id}/update', [ChecklistsController::class, 'update'])
         ->name('update');
     });
   });

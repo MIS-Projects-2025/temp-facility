@@ -6,25 +6,24 @@ use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Illuminate\Validation\Rule;
 use Carbon\Carbon;
-use App\Models\Asset;
+use App\Models\GlobalPm;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 
-class AssetsController extends Controller
+class GlobalPmController extends Controller
 {
   public function index(Request $request)
   {
-    $assets = Asset::query()
-      ->with('checklist')
+    $globalPMs = GlobalPm::query()
       ->get();
 
     if ($request->wantsJson()) {
       return response()->json([
-        'assets' => $assets,
+        'globalPMs' => $globalPMs,
       ]);
     }
 
-    return Inertia::render('AssetsList', [
-      'assets' => $assets,
+    return Inertia::render('GlobalPmList', [
+      'globalPMs' => $globalPMs,
     ]);
   }
 
@@ -32,24 +31,21 @@ class AssetsController extends Controller
   {
     return $request->validate(
       [
-        'checklist_id' => 'required|integer|exists:checklists,id',
-        'location' => 'required|integer|exists:locations,id',
-        'code'      => [
+        'maintenance_name' => [
           'required',
           'string',
-          'max:120',
-          Rule::unique('assets')->where(function ($query) use ($request) {
-            return $query->where('code', $request->code);
+          'max:255',
+          Rule::unique((new GlobalPm())->getTable())->where(function ($query) use ($request) {
+            return $query->where('maintenance_name', $request->maintenance_name);
           })->ignore($id),
         ],
-        'properties' => 'nullable|array',
+        'maintenance_description' => 'nullable|string',
       ],
       [
-        'checklist_id.exists' =>
-        'The selected checklist was not found. Please double-check and try again.',
-        'code.unique' =>
-        'The code provided already exists.',
-      ],
+        'maintenance_name.unique' =>
+        'The maintenance name provided already exists.',
+
+      ]
     );
   }
 
@@ -58,30 +54,30 @@ class AssetsController extends Controller
     $validated = $this->validateEntry($request);
     $user_id = session('emp_data')['emp_id'] ?? null;
 
-    $entry = Asset::create([
+    $entry = GlobalPm::create([
       ...$validated,
       'modified_by' => $user_id,
       'modified_at' => Carbon::now(),
     ]);
 
     return response()->json([
-      'message' => 'Asset created successfully',
+      'message' => 'Preventative Maintenance created successfully',
       'data'    => $entry,
     ], 201);
   }
 
   public function upsert($id = null)
   {
-    $item = $id ? Asset::findOrFail($id) : null;
+    $item = $id ? GlobalPm::findOrFail($id) : null;
 
-    return Inertia::render('AssetUpsert', [
+    return Inertia::render('GlobalPmUpsert', [
       'toBeEdit' => $item,
     ]);
   }
 
   public function update(Request $request, $id)
   {
-    $item = Asset::findOrFail($id);
+    $item = GlobalPm::findOrFail($id);
 
     $validated = $this->validateEntry($request, $id);
     $user_id = session('emp_data')['emp_id'] ?? null;
@@ -93,7 +89,7 @@ class AssetsController extends Controller
     ]);
 
     return response()->json([
-      'message' => 'Asset updated successfully',
+      'message' => 'Preventative Maintenance updated successfully',
       'data'    => $item,
     ]);
   }
@@ -101,17 +97,17 @@ class AssetsController extends Controller
   public function destroy($id)
   {
     try {
-      $item = Asset::findOrFail($id);
+      $item = GlobalPm::findOrFail($id);
       $item->delete();
 
       return response()->json([
         'success' => true,
-        'message' => 'Asset deleted successfully',
+        'message' => 'Preventative Maintenance deleted successfully',
       ]);
     } catch (ModelNotFoundException $e) {
       return response()->json([
         'status' => 'error',
-        'message' => 'Asset not found. Please verify the ID.',
+        'message' => 'Preventative Maintenance not found. Please verify the ID.',
       ], 404);
     }
   }

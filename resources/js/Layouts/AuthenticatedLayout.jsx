@@ -4,17 +4,20 @@ import { usePage } from "@inertiajs/react";
 import { useEffect, useState } from "react";
 import Footer from "@/Components/Footer";
 import { useLocationStore } from "@/Store/locationStore";
+import { useChecklistStore } from "@/Store/checklistStore";
 
 export default function AuthenticatedLayout({ header, children }) {
     const { url } = usePage();
     const { emp_data } = usePage().props;
     const { fetchLocations } = useLocationStore();
+    const { fetchChecklists } = useChecklistStore();
     const [hasUserFetched, setHasUserFetched] = useState(false);
 
     useEffect(() => {
         if (!emp_data || hasUserFetched) return;
 
         fetchLocations();
+        fetchChecklists();
 
         setHasUserFetched(true);
     }, [emp_data, hasUserFetched]);

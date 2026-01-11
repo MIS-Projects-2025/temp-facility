@@ -8,7 +8,10 @@ use App\Http\Controllers\General\AdminController;
 use App\Http\Middleware\AuthMiddleware;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\UtilityTrashController;
+use App\Http\Controllers\LocationController;
 use App\Http\Controllers\General\ProfileController;
+use App\Http\Controllers\ChecklistsController;
+use App\Http\Controllers\SchedulesController;
 use App\Http\Controllers\HazardousWasteTurnOverLogSheetController;
 use Inertia\Inertia;
 
@@ -48,6 +51,20 @@ Route::prefix('hazardous')->name('hazardous-log-sheet.')->group(
     }
 );
 
+Route::prefix('locations')->name('locations.')->group(
+    function () {
+        Route::middleware([])->group(function () {
+            Route::get("/", [LocationController::class, 'index'])->name('index');
+        });
+        Route::middleware([])->group(function () {
+            Route::get("/create", [LocationController::class, 'upsert'])->name('create');
+        });
+        Route::middleware([])->group(function () {
+            Route::get("/{id}/edit", [LocationController::class, 'upsert'])->name('edit');
+        });
+    }
+);
+
 Route::prefix('chemicals')->name('chemicals.')->group(
     function () {
         Route::middleware([])->group(function () {
@@ -72,6 +89,34 @@ Route::prefix('chemicals-sds')->name('chemicals-sds.')->group(
         });
         Route::middleware([])->group(function () {
             Route::get("/{id}/edit", [ChemicalSDSController::class, 'upsert'])->name('edit');
+        });
+    }
+);
+
+Route::prefix('checklist-items')->name('checklist-items.')->group(
+    function () {
+        Route::middleware([])->group(function () {
+            Route::get("/", [ChecklistsController::class, 'index'])->name('index');
+        });
+        Route::middleware([])->group(function () {
+            Route::get("/create", [ChecklistsController::class, 'upsert'])->name('create');
+        });
+        Route::middleware([])->group(function () {
+            Route::get("/{id}/edit", [ChecklistsController::class, 'upsert'])->name('edit');
+        });
+    }
+);
+
+Route::prefix('schedules')->name('schedules.')->group(
+    function () {
+        Route::middleware([])->group(function () {
+            Route::get("/", [SchedulesController::class, 'index'])->name('index');
+        });
+        Route::middleware([])->group(function () {
+            Route::get("/create", [SchedulesController::class, 'upsert'])->name('create');
+        });
+        Route::middleware([])->group(function () {
+            Route::get("/{id}/edit", [SchedulesController::class, 'upsert'])->name('edit');
         });
     }
 );

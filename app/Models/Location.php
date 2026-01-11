@@ -10,6 +10,8 @@ class Location extends Model
   /** @use HasFactory<\Database\Factories\UserFactory> */
   use HasFactory;
 
+  protected $table = 'locations';
+  public $timestamps = false;
   protected $fillable = [
     'location_name',
     'created_by',

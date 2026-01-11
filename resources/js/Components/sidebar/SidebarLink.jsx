@@ -45,7 +45,7 @@ const SidebarLink = ({
                     id={tooltipID}
                     href={href}
                     className={clsx(
-                        `relative flex h-8 items-center justify-between px-2 py-1 pl-2.5 transition-colors duration-150 `,
+                        `relative flex h-7 items-center justify-between px-2 pl-2.5 transition-colors duration-150 `,
                         hoverColor,
                         isActive
                             ? isDark
@@ -56,7 +56,7 @@ const SidebarLink = ({
                 >
                     <div
                         className={clsx(
-                            "absolute w-0.5 ml-1.85 h-8",
+                            "absolute w-0.5 ml-1.85 h-7",
                             isActive ? "bg-primary" : "bg-base-300",
                             {
                                 hidden: isIconOnly || !isSub,

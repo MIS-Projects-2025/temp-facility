@@ -3,6 +3,8 @@
 namespace App\Models;
 
 use App\Models\Checklist;
+use App\Models\EntityChecklistItemSchedule;
+use App\Models\CheckItem;
 use Illuminate\Database\Eloquent\Model;
 
 class ChecklistItem extends Model
@@ -14,11 +16,34 @@ class ChecklistItem extends Model
     'checklist_id',
     'item_id',
     'criteria',
-    'schedule_type',
+    'modified_by',
+    'modified_at',
   ];
 
   public function checklist()
   {
     return $this->belongsTo(Checklist::class, 'checklist_id');
+  }
+
+  public function item()
+  {
+    return $this->belongsTo(CheckItem::class, 'item_id');
+  }
+
+  public function entitySchedule()
+  {
+    return $this->hasOne(EntityChecklistItemSchedule::class, 'checklist_item_id');
+  }
+
+  public function schedule()
+  {
+    return $this->hasOneThrough(
+      Schedule::class,
+      EntityChecklistItemSchedule::class,
+      'checklist_item_id', // FK on entity_schedules
+      'id',           // PK on schedules
+      'id',           // PK on checklists
+      'schedule_id'   // FK on entity_schedules
+    );
   }
 }

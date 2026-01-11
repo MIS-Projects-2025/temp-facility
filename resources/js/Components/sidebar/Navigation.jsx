@@ -13,6 +13,9 @@ import { TbAirConditioning } from "react-icons/tb";
 import { GiChemicalDrop, GiWaterTank } from "react-icons/gi";
 import { WiHumidity } from "react-icons/wi";
 import { IoWaterSharp } from "react-icons/io5";
+import { FaLocationDot } from "react-icons/fa6";
+import { MdChecklist } from "react-icons/md";
+import { RiCalendarScheduleLine } from "react-icons/ri";
 
 import {
     MdAir,
@@ -145,6 +148,30 @@ export default function NavLinks({ isCollapse }) {
                 notifications={5}
                 isIconOnly={isCollapse}
             />
+            <SidebarLink
+                href={route("locations.index")}
+                label="Locations"
+                icon={<FaLocationDot className="w-full h-full" />}
+                notifications={5}
+                isIconOnly={isCollapse}
+            />
+            <SidebarLink
+                href={route("checklist-items.index")}
+                label="Checklists"
+                icon={<MdChecklist className="w-full h-full" />}
+                notifications={5}
+                isIconOnly={isCollapse}
+            />
+
+            {/* <SidebarLink
+                href={route("schedules.index")}
+                label="Schedules"
+                icon={<RiCalendarScheduleLine className="w-full h-full" />}
+                notifications={5}
+                isIconOnly={isCollapse}
+            /> */}
+
+            {/* TODO: use checklist table instead of separate table??? */}
             <Dropdown
                 label="Chemicals"
                 icon={<FaBiohazard className="w-full h-full" />}
@@ -163,7 +190,6 @@ export default function NavLinks({ isCollapse }) {
                 isIconOnly={isCollapse}
                 // notification={true}
             />
-
             {/* <SidebarLink
                 href={route("dashboard")}
                 label="Dashboard"

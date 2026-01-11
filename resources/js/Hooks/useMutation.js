@@ -22,8 +22,8 @@ export function useMutation() {
 
     try {
       const { method = "POST", body, isFormData = false, isContentTypeInclude = true } = options;
+      console.log("🚀 ~ mutate ~ body:", JSON.stringify(body))
       const token = localStorage.getItem("authify-token");
-
       const response = await fetch(url, {
         method,
         headers: {

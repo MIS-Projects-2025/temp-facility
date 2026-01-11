@@ -1,6 +1,6 @@
 import { create } from "zustand";
 
-export const useLocationStore = create((set, get) => {
+export const useChecklistStore = create((set, get) => {
   let abortController = null;
 
   const buildUrlWithParams = (baseUrl, params = {}) => {
@@ -13,7 +13,7 @@ export const useLocationStore = create((set, get) => {
     isLoading: false,
     errorMessage: null,
 
-    async fetchLocations(params = {}) {
+    async fetchChecklists (params = {}) {
       if (abortController) {
         abortController.abort();
       }
@@ -23,7 +23,7 @@ export const useLocationStore = create((set, get) => {
       set({ isLoading: true, errorMessage: null });
 
       try {
-        const url = buildUrlWithParams(route("api.locations.index"), params);
+        const url = buildUrlWithParams(route("api.checklists.index"), params);
         const token = localStorage.getItem("authify-token");
 
         const response = await fetch(url, {
@@ -50,7 +50,7 @@ export const useLocationStore = create((set, get) => {
           error.data = result;
           throw error;
         }
-
+        
         set({ data: result });
       } catch (error) {
         if (error.name !== "AbortError") {

@@ -4,27 +4,24 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Inertia\Inertia;
-use Illuminate\Validation\Rule;
 use Carbon\Carbon;
-use App\Models\Asset;
+use App\Models\Schedule;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 
-class AssetsController extends Controller
+class SchedulesController extends Controller
 {
   public function index(Request $request)
   {
-    $assets = Asset::query()
-      ->with('checklist')
-      ->get();
+    $schedules = Schedule::query()->get();
 
     if ($request->wantsJson()) {
       return response()->json([
-        'assets' => $assets,
+        'schedules' => $schedules,
       ]);
     }
 
-    return Inertia::render('AssetsList', [
-      'assets' => $assets,
+    return Inertia::render('SchedulesList', [
+      'schedules' => $schedules,
     ]);
   }
 
@@ -32,23 +29,17 @@ class AssetsController extends Controller
   {
     return $request->validate(
       [
-        'checklist_id' => 'required|integer|exists:checklists,id',
-        'location' => 'required|integer|exists:locations,id',
-        'code'      => [
-          'required',
-          'string',
-          'max:120',
-          Rule::unique('assets')->where(function ($query) use ($request) {
-            return $query->where('code', $request->code);
-          })->ignore($id),
-        ],
-        'properties' => 'nullable|array',
-      ],
-      [
-        'checklist_id.exists' =>
-        'The selected checklist was not found. Please double-check and try again.',
-        'code.unique' =>
-        'The code provided already exists.',
+        'recurrence_type' => 'required|string|max:10',
+        'schedule_name' => 'required|string|max:255',
+        'schedule_description' => 'nullable|string',
+        'interval_unit' => 'nullable|integer',
+        'interval_value' => 'nullable|integer',
+        'days_of_week' => 'nullable|array',
+        'days_of_month' => 'nullable|array',
+        'nth_weekday' => 'nullable|integer',
+        'weekday_of_month' => 'nullable|integer',
+        'months' => 'nullable|array',
+        'day_times' => 'nullable|array',
       ],
     );
   }
@@ -58,30 +49,30 @@ class AssetsController extends Controller
     $validated = $this->validateEntry($request);
     $user_id = session('emp_data')['emp_id'] ?? null;
 
-    $entry = Asset::create([
+    $entry = Schedule::create([
       ...$validated,
       'modified_by' => $user_id,
       'modified_at' => Carbon::now(),
     ]);
 
     return response()->json([
-      'message' => 'Asset created successfully',
+      'message' => 'Schedule created successfully',
       'data'    => $entry,
     ], 201);
   }
 
   public function upsert($id = null)
   {
-    $item = $id ? Asset::findOrFail($id) : null;
+    $item = $id ? Schedule::findOrFail($id) : null;
 
-    return Inertia::render('AssetUpsert', [
+    return Inertia::render('ScheduleUpsert', [
       'toBeEdit' => $item,
     ]);
   }
 
   public function update(Request $request, $id)
   {
-    $item = Asset::findOrFail($id);
+    $item = Schedule::findOrFail($id);
 
     $validated = $this->validateEntry($request, $id);
     $user_id = session('emp_data')['emp_id'] ?? null;
@@ -93,7 +84,7 @@ class AssetsController extends Controller
     ]);
 
     return response()->json([
-      'message' => 'Asset updated successfully',
+      'message' => 'Schedule updated successfully',
       'data'    => $item,
     ]);
   }
@@ -101,17 +92,17 @@ class AssetsController extends Controller
   public function destroy($id)
   {
     try {
-      $item = Asset::findOrFail($id);
+      $item = Schedule::findOrFail($id);
       $item->delete();
 
       return response()->json([
         'success' => true,
-        'message' => 'Asset deleted successfully',
+        'message' => 'Schedule deleted successfully',
       ]);
     } catch (ModelNotFoundException $e) {
       return response()->json([
         'status' => 'error',
-        'message' => 'Asset not found. Please verify the ID.',
+        'message' => 'Schedule not found. Please verify the ID.',
       ], 404);
     }
   }

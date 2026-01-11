@@ -45,6 +45,7 @@ export default function Sidebar() {
     useEffect(() => {
         if (isMobile) {
             setIsSidebarCollapsed(false);
+            setIsSidebarOpen(false);
         } else {
             setIsSidebarOpen(true);
         }

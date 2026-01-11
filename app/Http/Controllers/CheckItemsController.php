@@ -2,15 +2,13 @@
 
 namespace App\Http\Controllers;
 
-use App\Traits\ValidateEmployeeExistenceTrait;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
 use App\Models\CheckItem;
-use Illuminate\Validation\Rule;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class CheckItemsController extends Controller
 {
@@ -32,7 +30,7 @@ class CheckItemsController extends Controller
 
     if ($request->wantsJson()) {
       return response()->json([
-        'checklistItems' => $checkItems,
+        'checkItems' => $checkItems,
         'search' => $search,
         'perPage' => $perPage,
         'totalEntries' => $totalEntries,
@@ -40,11 +38,18 @@ class CheckItemsController extends Controller
     }
 
     return Inertia::render('CheckItemsList', [
-      'checklistItems' => $checkItems,
+      'checkItems' => $checkItems,
       'search' => $search,
       'perPage' => $perPage,
       'totalEntries' => $totalEntries,
     ]);
+  }
+
+  public function getAllCheckItems(Request $request)
+  {
+    $checklistID = $request->input('checklist_id');
+
+    return CheckItem::where('checklist_id', $checklistID)->get();
   }
 
   private function validateEntry(Request $request, $id = null)
@@ -55,6 +60,44 @@ class CheckItemsController extends Controller
         'description' => 'nullable|string',
       ],
     );
+  }
+
+  public function bulkUpdate(Request $request)
+  {
+    $rows = $request->all();
+    $user = session('emp_data');
+    Log::info("rows: " . json_encode($rows));
+
+    DB::transaction(function () use ($rows, $user) {
+
+      foreach ($rows as $id => $fields) {
+
+        if (empty($fields)) {
+          continue;
+        }
+
+        $model = CheckItem::find($id);
+
+        if (!$model) {
+          continue;
+        }
+
+        $updateData = [];
+
+        foreach ($fields as $column => $value) {
+          $updateData[$column] = $value;
+        }
+
+        $updateData['modified_by'] = $user['emp_id'] ?? null;
+        Log::info("UPDATE DATA: " . json_encode($updateData));
+
+        if (!empty($updateData)) {
+          $model->update($updateData);
+        }
+      }
+    });
+
+    return response()->json(['status' => 'ok']);
   }
 
   public function store(Request $request)

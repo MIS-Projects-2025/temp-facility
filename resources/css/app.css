@@ -7,6 +7,15 @@
 }
 
 @theme {
+  --animate-hehe: hehe .8s ease-in-out infinite;
+
+  @keyframes hehe {
+    50% {
+      opacity: .1
+    }
+  }
+
+
   --font-sans: "Poppins", sans-serif;
   
   /* default custom values */

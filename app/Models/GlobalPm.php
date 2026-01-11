@@ -5,16 +5,13 @@ namespace App\Models;
 use App\Models\Checklist;
 use Illuminate\Database\Eloquent\Model;
 
-class CheckItem extends Model
+class GlobalPm extends Model
 {
-  protected $table = 'check_items';
+  protected $table = 'global_preventative_maintenances';
   public $timestamps = false;
 
   protected $fillable = [
-    'name',
-    'description',
-
-    // item_id
-    // -> criteria
+    'maintenance_name',
+    'maintenance_description',
   ];
 }

@@ -7,6 +7,7 @@ import Pagination from "./Pagination";
 
 const MultiSelectSearchableDropdown = memo(
     function MultiSelectSearchableDropdown({
+        modalId = "multiSelectSearchableDropdown-modal",
         formFieldName,
         options = [],
         onChange,
@@ -16,7 +17,7 @@ const MultiSelectSearchableDropdown = memo(
         contentClassName = "",
         itemName = "options",
         prompt = "",
-        debounceDelay = 200,
+        debounceDelay = 500,
         singleSelect = false,
         disableSearch = false,
         disableTooltip = false,
@@ -31,6 +32,7 @@ const MultiSelectSearchableDropdown = memo(
         links = null,
         disableClearSelection = false,
         currentPage = null,
+        customButtonLabel = null,
         goToPage = () => {},
     }) {
         const id = useId();
@@ -40,7 +42,6 @@ const MultiSelectSearchableDropdown = memo(
         const [selectedOptions, setSelectedOptions] = useState(
             defaultSelectedOptions
         );
-        console.log({ selectedOptions });
         const [searchInput, setSearchInput] = useState("");
         const [debouncedSearch, setDebouncedSearch] = useState("");
 
@@ -60,9 +61,9 @@ const MultiSelectSearchableDropdown = memo(
 
         const getSelectedValues = (values) => {
             if (returnKey === "value") return values;
-            return values.map(
-                (val) => options.find((opt) => opt.value === val)?.[returnKey]
-            );
+            return values.map((val) => {
+                return options.find((opt) => opt.value === val)?.[returnKey];
+            });
         };
 
         const handleChange = (e) => {
@@ -70,6 +71,7 @@ const MultiSelectSearchableDropdown = memo(
             let updatedValues;
             if (singleSelect) {
                 updatedValues = [value];
+                setOpen(false);
             } else {
                 const isChecked = e.target.checked;
                 updatedValues = isChecked
@@ -103,6 +105,14 @@ const MultiSelectSearchableDropdown = memo(
         const isClearSelectionEnabled = selectedOptions.length > 0;
 
         const getButtonLabel = () => {
+            if (typeof customButtonLabel === "function") {
+                return customButtonLabel({
+                    selectedOptions,
+                });
+            }
+
+            if (customButtonLabel) return customButtonLabel;
+
             const count = selectedOptions.length;
             if (count === 0) return prompt;
             if (singleSelect || count === 1) return selectedOptions[0];
@@ -121,41 +131,6 @@ const MultiSelectSearchableDropdown = memo(
                         option.label.toLowerCase().includes(search))
             );
         }, [debouncedSearch, options, onSearchChange]);
-
-        const highlightMatch = (option) => {
-            const search = debouncedSearch.trim().toLowerCase();
-            const regex = new RegExp(`(${search})`, "i");
-
-            const highlightText = (text) =>
-                text.split(regex).map((part, i) =>
-                    part.toLowerCase() === search ? (
-                        <span key={i} className="text-primary font-medium">
-                            {part}
-                        </span>
-                    ) : (
-                        <span key={i}>{part}</span>
-                    )
-                );
-
-            if (option.label && option.label !== option.value) {
-                return (
-                    <div>
-                        <div className="w-10">
-                            {highlightText(option.value)}
-                        </div>
-                        <div className="opacity-75 text-xs">
-                            {highlightText(option.label)}
-                        </div>
-                    </div>
-                );
-            }
-
-            return (
-                <span className="text-value">
-                    {highlightText(option.value)}
-                </span>
-            );
-        };
 
         const tooltipID = `${id}-${itemName}-tooltip`;
 
@@ -200,7 +175,7 @@ const MultiSelectSearchableDropdown = memo(
             <>
                 {showSearchInput && searchBar()}
 
-                <div className="flex items-center mb-2 gap-2">
+                <div className="flex z-10 items-center mb-2 gap-2">
                     {!disableClearSelection && (
                         <button
                             onClick={handleClearSelectionClick}
@@ -224,11 +199,11 @@ const MultiSelectSearchableDropdown = memo(
                     )}
                 </div>
 
-                <div className={clsx("flex w-full", contentClassName)}>
+                <div className={clsx("flex", contentClassName)}>
                     <div className="overflow-y-auto w-full flex flex-col">
                         {filteredOptions.length === 0 ? (
                             <div className="p-2 text-sm text-gray-500">
-                                No matches found
+                                No matches found for {debouncedSearch}
                             </div>
                         ) : (
                             filteredOptions.map((option) => (
@@ -252,9 +227,7 @@ const MultiSelectSearchableDropdown = memo(
                                                 : "checkbox checkbox-sm checkbox-primary cursor-pointer"
                                         )}
                                     />
-                                    <span className="ml-2">
-                                        {highlightMatch(option)}
-                                    </span>
+                                    <span className="ml-2">{option.value}</span>
                                 </label>
                             ))
                         )}
@@ -300,7 +273,7 @@ const MultiSelectSearchableDropdown = memo(
             return (
                 <div
                     ref={wrapperRef}
-                    className="dropdown"
+                    className="dropdown w-full"
                     onFocus={onFocus}
                     onBlur={(e) => {
                         if (!wrapperRef.current?.contains(e.relatedTarget)) {
@@ -343,7 +316,7 @@ const MultiSelectSearchableDropdown = memo(
                         <>
                             <ul
                                 tabIndex="-1"
-                                className="dropdown-content menu z-1 w-100 flex flex-col bg-base-100 rounded-box p-2 shadow-sm"
+                                className="dropdown-content menu z-50 w-full flex flex-col bg-base-100 rounded-box p-2 shadow-sm"
                             >
                                 {promptLabel()}
                                 {isLoading ? (
@@ -365,17 +338,17 @@ const MultiSelectSearchableDropdown = memo(
             <dialog
                 ref={modalRef}
                 onFocus={onFocus}
-                id="multiSelectSearchableDropdown-modal"
+                id={modalId}
                 className="modal"
             >
-                <div className="modal-box w-100">
+                <div className="modal-box w-full">
                     {selectedOptions.length > 0 && (
-                        <div className="my-1 text-center">
-                            currently selected{" "}
+                        <div className="flex justify-center items-center gap-2 my-1 text-center">
+                            <div>currently selected</div>
                             {selectedOptions.map((option) => (
                                 <span
                                     key={option}
-                                    className="border border-neutral-content/40 px-1 rounded-lg"
+                                    className="border bg-primary/75 text-primary-content border-neutral-content/40 px-1"
                                 >
                                     {option}
                                 </span>
@@ -387,7 +360,7 @@ const MultiSelectSearchableDropdown = memo(
                         {searchBar()}
                         {isLoading ? (
                             <div className="h-120 flex justify-center items-center flex-col gap-2">
-                                <div className="bg-red-500 loading loading-spinner"></div>
+                                <div className="loading loading-spinner"></div>
                                 <div>loading {itemName}</div>
                             </div>
                         ) : (
