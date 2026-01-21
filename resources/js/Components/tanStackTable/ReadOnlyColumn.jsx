@@ -6,7 +6,7 @@ const ReadOnlyColumns = ({ accessorKey, header, options = {}, formatter }) => ({
         const value = getValue();
         const displayValue = formatter ? formatter(value) : value ?? "-";
         return (
-            <span className="opacity-60 cursor-not-allowed">
+            <span className="opacity-60 flex items-center cursor-not-allowed">
                 {displayValue}
             </span>
         );

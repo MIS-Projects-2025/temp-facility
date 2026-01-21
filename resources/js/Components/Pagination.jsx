@@ -10,7 +10,7 @@ const Pagination = ({
     overallTotal = 0,
     start = 0,
     end = 0,
-    contentClassName = "bg-base-200",
+    contentClassName = "bg-base-300",
 }) => {
     return (
         <div

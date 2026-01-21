@@ -12,6 +12,9 @@ use App\Http\Controllers\LocationController;
 use App\Http\Controllers\General\ProfileController;
 use App\Http\Controllers\ChecklistsController;
 use App\Http\Controllers\SchedulesController;
+use App\Http\Controllers\AssetsController;
+use App\Http\Controllers\ChecklistAssetsController;
+use App\Http\Controllers\AssetPmSchedulesController;
 use App\Http\Controllers\HazardousWasteTurnOverLogSheetController;
 use Inertia\Inertia;
 
@@ -117,6 +120,48 @@ Route::prefix('schedules')->name('schedules.')->group(
         });
         Route::middleware([])->group(function () {
             Route::get("/{id}/edit", [SchedulesController::class, 'upsert'])->name('edit');
+        });
+    }
+);
+
+Route::prefix('assets')->name('assets.')->group(
+    function () {
+        Route::middleware([])->group(function () {
+            Route::get("/", [AssetsController::class, 'index'])->name('index');
+        });
+        Route::middleware([])->group(function () {
+            Route::get("/create", [AssetsController::class, 'upsert'])->name('create');
+        });
+        Route::middleware([])->group(function () {
+            Route::get("/{id}/edit", [AssetsController::class, 'upsert'])->name('edit');
+        });
+    }
+);
+
+Route::prefix('checklist-assets')->name('checklist-assets.')->group(
+    function () {
+        Route::middleware([])->group(function () {
+            Route::get("/", [ChecklistAssetsController::class, 'index'])->name('index');
+        });
+        Route::middleware([])->group(function () {
+            Route::get("/create", [ChecklistAssetsController::class, 'upsert'])->name('create');
+        });
+        Route::middleware([])->group(function () {
+            Route::get("/{id}/edit", [ChecklistAssetsController::class, 'upsert'])->name('edit');
+        });
+    }
+);
+
+Route::prefix('asset-pm-schedule')->name('asset-pm-schedule.')->group(
+    function () {
+        Route::middleware([])->group(function () {
+            Route::get("/", [AssetPmSchedulesController::class, 'index'])->name('index');
+        });
+        Route::middleware([])->group(function () {
+            Route::get("/create", [AssetPmSchedulesController::class, 'upsert'])->name('create');
+        });
+        Route::middleware([])->group(function () {
+            Route::get("/{id}/edit", [AssetPmSchedulesController::class, 'upsert'])->name('edit');
         });
     }
 );

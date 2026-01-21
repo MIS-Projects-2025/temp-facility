@@ -94,7 +94,7 @@ function LocationList() {
     const [originalData, setOriginalData] = useState({});
 
     const { table, setData, editedRows, setEditedRows } = useEditableTable(
-        serverLocations || [],
+        serverLocations.data || [],
         columns
     );
 
@@ -113,7 +113,7 @@ function LocationList() {
     };
 
     useEffect(() => {
-        const rows = serverLocations || [];
+        const rows = serverLocations.data || [];
         setData(rows);
 
         const map = {};

@@ -3,18 +3,20 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
-use Illuminate\Validation\Rule;
 use Inertia\Inertia;
+use Illuminate\Validation\Rule;
 use Carbon\Carbon;
-use App\Models\AssetPmSchedule;
-use Illuminate\Database\Eloquent\ModelNotFoundException;
-use Illuminate\Database\QueryException;
-use App\Traits\MassDeletesByIds;
-use Exception;
-use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use App\Models\ChecklistAssets;
+use Exception;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Illuminate\Http\Middleware\ValidatePathEncoding;
+use Illuminate\Support\Facades\Validator;
+use App\Models\Checklist;
+use App\Traits\MassDeletesByIds;
 
-class AssetPmSchedulesController extends Controller
+class ChecklistAssetsController extends Controller
 {
   use MassDeletesByIds;
 
@@ -22,34 +24,56 @@ class AssetPmSchedulesController extends Controller
   {
     $search = $request->input('search', '');
     $perPage = $request->input('perPage', 30);
-    $totalEntries = AssetPmSchedule::count();
+    $checklistId = $request->input('checklistId', null); // optional filter
+    $totalEntries = ChecklistAssets::count();
 
-    $assetPmSchedules = AssetPmSchedule::query()
-      ->with(['assets.location', 'schedule'])
+    if (!$checklistId) {
+      $checklistId = Checklist::first()->id;
+    }
+
+    $checklistAssetsQuery = ChecklistAssets::query()
+      ->with(['asset', 'checklist'])
+      // $assetsQuery = ChecklistAssets::query()
       ->when($search, function ($query, $search) {
-        $query->whereHas('assets', fn($q) => $q->where('code', 'like', "%{$search}%"));
+        $query->whereHas('asset', fn($q) => $q->where('code', 'like', "%{$search}%"));
       })
-      // ->join('assets', 'assets.id', '=', 'asset_pm_schedules.asset_id') // assuming asset_id foreign key
-      // ->orderBy('assets.code')
-      // ->select('asset_pm_schedules.*') // important to avoid ambiguous columns
-      ->paginate($perPage)
-      ->withQueryString();
+      //   // optional checklist filter
+      ->when($checklistId, function ($query) use ($checklistId) {
+        $query->where(function ($q) use ($checklistId) {
+          $q->where('checklist_id', $checklistId);
+        });
+      });
+
+    // paginated result
+    $checklistAssets = $checklistAssetsQuery->paginate($perPage);
 
     if ($request->wantsJson()) {
       return response()->json([
-        'assetPmSchedules' => $assetPmSchedules,
+        'assets' => $checklistAssets,
         'search' => $search,
         'perPage' => $perPage,
+        'checklistId' => $checklistId,
         'totalEntries' => $totalEntries,
       ]);
     }
 
-    return Inertia::render('AssetPmScheduleList', [
-      'assetPmSchedules' => $assetPmSchedules,
+    Log::info('assets: ', [$checklistAssets]);
+    return Inertia::render('ChecklistAssetList', [
+      'assets' => $checklistAssets,
       'search' => $search,
       'perPage' => $perPage,
+      'checklistId' => $checklistId,
       'totalEntries' => $totalEntries,
     ]);
+  }
+
+  public function getAllAssets(Request $request)
+  {
+    $checklistID = $request->input('checklist_id');
+
+    return ChecklistAssets::where('checklist_id', $checklistID)
+      ->with(['location'])
+      ->get();
   }
 
   private function rules($id, $asset_id)
@@ -60,10 +84,10 @@ class AssetPmSchedulesController extends Controller
         'integer',
         'exists:assets,id',
       ],
-      'schedule_id' => [
+      'checklist_id' => [
         'required',
         'integer',
-        Rule::unique('entity_asset_pm_schedules')
+        Rule::unique('checklist_assets')
           ->where(function ($query) use ($asset_id) {
             return $query->where('asset_id', $asset_id);
           })
@@ -76,9 +100,9 @@ class AssetPmSchedulesController extends Controller
   {
     return [
       'asset_id.exists' =>
-      'The selected asset was not found. Please double-check and try again.',
-      'schedule_id.unique' =>
-      'This combination of schedule id and asset id already exists.',
+      'The selected checklist was not found. Please double-check and try again.',
+      'checklist_id.unique' =>
+      'This combination of checklist id and asset id already exists.',
     ];
   }
 
@@ -99,7 +123,7 @@ class AssetPmSchedulesController extends Controller
   {
     return $this->massDeleteByIds(
       $request,
-      AssetPmSchedule::class
+      ChecklistAssets::class
     );
   }
 
@@ -114,8 +138,8 @@ class AssetPmSchedulesController extends Controller
     foreach ($rows as $key => $entry) {
 
       $row = [
-        'asset_id' => $entry['assets']['id'] ?? null,
-        'schedule_id' => $entry['schedule']['id'] ?? null,
+        'asset_id' => $entry['asset']['id'] ?? null,
+        'checklist_id' => $entry['checklist_id'] ?? null,
       ];
 
       $id = is_numeric($key) ? $key : null;
@@ -151,16 +175,16 @@ class AssetPmSchedulesController extends Controller
         $rows,
         $user
       ) {
-        AssetPmSchedule::upsert(
+        ChecklistAssets::upsert(
           array_map(fn($row) => array_merge($row, [
             'modified_by' => $user['emp_id'] ?? null,
             'modified_at' => Carbon::now(),
           ]), $updateData),
           ['id'],
-          ['asset_id', 'schedule_id', 'modified_by', 'modified_at']
+          ['asset_id', 'checklist_id', 'modified_by', 'modified_at']
         );
 
-        AssetPmSchedule::insert(
+        ChecklistAssets::insert(
           array_map(fn($row) => array_merge($row, [
             'modified_by' => $user['emp_id'] ?? null,
             'modified_at' => Carbon::now(),
@@ -179,30 +203,30 @@ class AssetPmSchedulesController extends Controller
     $validated = $this->validateEntry($request);
     $user_id = session('emp_data')['emp_id'] ?? null;
 
-    $entry = AssetPmSchedule::create([
+    $entry = ChecklistAssets::create([
       ...$validated,
       'modified_by' => $user_id,
       'modified_at' => Carbon::now(),
     ]);
 
     return response()->json([
-      'message' => 'AssetPmSchedule created successfully',
+      'message' => 'Asset created successfully',
       'data'    => $entry,
     ], 201);
   }
 
   public function upsert($id = null)
   {
-    $item = $id ? AssetPmSchedule::findOrFail($id) : null;
+    $item = $id ? ChecklistAssets::findOrFail($id) : null;
 
-    return Inertia::render('AssetPmScheduleUpsert', [
+    return Inertia::render('AssetUpsert', [
       'toBeEdit' => $item,
     ]);
   }
 
   public function update(Request $request, $id)
   {
-    $item = AssetPmSchedule::findOrFail($id);
+    $item = ChecklistAssets::findOrFail($id);
 
     $validated = $this->validateEntry($request, $id);
     $user_id = session('emp_data')['emp_id'] ?? null;
@@ -214,7 +238,7 @@ class AssetPmSchedulesController extends Controller
     ]);
 
     return response()->json([
-      'message' => 'AssetPmSchedule updated successfully',
+      'message' => 'Asset updated successfully',
       'data'    => $item,
     ]);
   }
@@ -222,17 +246,17 @@ class AssetPmSchedulesController extends Controller
   public function destroy($id)
   {
     try {
-      $item = AssetPmSchedule::findOrFail($id);
+      $item = ChecklistAssets::findOrFail($id);
       $item->delete();
 
       return response()->json([
         'success' => true,
-        'message' => 'AssetPmSchedule deleted successfully',
+        'message' => 'Asset deleted successfully',
       ]);
     } catch (ModelNotFoundException $e) {
       return response()->json([
         'status' => 'error',
-        'message' => 'AssetPmSchedule not found. Please verify the ID.',
+        'message' => 'Asset not found. Please verify the ID.',
       ], 404);
     }
   }

@@ -6,34 +6,83 @@ use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Illuminate\Validation\Rule;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use App\Models\Asset;
+use App\Models\ChecklistAssets;
+use Exception;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Illuminate\Support\Facades\Validator;
+use App\Traits\MassDeletesByIds;
 
 class AssetsController extends Controller
 {
+  use MassDeletesByIds;
+
   public function index(Request $request)
   {
-    $assets = Asset::query()
-      ->with('checklist')
-      ->get();
+    $search = $request->input('search', '');
+    $perPage = $request->input('perPage', 30);
+    $checklistId = $request->input('checklistId', null); // optional filter
+    $totalEntries = Asset::count();
+
+    $assetsQuery = Asset::query()
+      ->with(['location'])
+      // $assetsQuery = Asset::query()
+      //   // optional checklist filter
+      //   ->when($checklistId, function ($query) use ($checklistId) {
+      //     $query->whereExists(function ($subQuery) use ($checklistId) {
+      //       $subQuery->select(DB::raw(1))
+      //         ->from('checklist_assets as ac')
+      //         ->whereColumn('ac.asset_id', 'assets.id')
+      //         ->where('ac.checklist_id', $checklistId);
+      //     });
+      //   })
+
+      ->when($search !== '', function ($query) use ($search) {
+        $query->where(function ($q) use ($search) {
+          $q->where('code', 'like', "%{$search}%");
+        });
+      })
+      ->orderBy('code', 'asc');
+
+    // paginated result
+    $assets = $assetsQuery->paginate($perPage);
 
     if ($request->wantsJson()) {
       return response()->json([
         'assets' => $assets,
+        'search' => $search,
+        'perPage' => $perPage,
+        'checklistId' => $checklistId,
+        'totalEntries' => $totalEntries,
       ]);
     }
 
-    return Inertia::render('AssetsList', [
+    Log::info('assets: ', [$assets]);
+    return Inertia::render('AssetList', [
       'assets' => $assets,
+      'search' => $search,
+      'perPage' => $perPage,
+      'checklistId' => $checklistId,
+      'totalEntries' => $totalEntries,
     ]);
+  }
+
+  public function getAllAssets(Request $request)
+  {
+    $checklistID = $request->input('checklist_id');
+
+    return Asset::where('checklist_id', $checklistID)
+      ->with(['location'])
+      ->get();
   }
 
   private function validateEntry(Request $request, $id = null)
   {
     return $request->validate(
       [
-        'checklist_id' => 'required|integer|exists:checklists,id',
-        'location' => 'required|integer|exists:locations,id',
+        'location_id' => 'nullable|integer|exists:locations,id',
         'code'      => [
           'required',
           'string',
@@ -51,6 +100,113 @@ class AssetsController extends Controller
         'The code provided already exists.',
       ],
     );
+  }
+
+  private function assetRules($id = null)
+  {
+    return [
+      'location_id' => 'nullable|integer|exists:locations,id',
+      'code' => [
+        'required',
+        'string',
+        'max:120',
+        Rule::unique('assets', 'code')->ignore($id),
+      ],
+      'properties' => 'nullable|array',
+    ];
+  }
+
+  private function assetMessages()
+  {
+    return [
+      'location_id.exists' =>
+      'The selected location was not found. Please double-check and try again.',
+      'code.unique' =>
+      'The code provided already exists.',
+    ];
+  }
+
+  public function massGenocide(Request $request)
+  {
+    return $this->massDeleteByIds(
+      $request,
+      Asset::class
+    );
+  }
+
+  public function bulkUpdate(Request $request)
+  {
+    $rows = $request->all();
+    $user = session('emp_data');
+
+    $updateData = [];
+    $insertData = [];
+
+    foreach ($rows as $key => $entry) {
+
+      $row = [
+        'location_id' => $entry['location']['id'] ?? null,
+        'code' => $entry['code'] ?? null,
+        'properties' => $entry['properties'] ?? null,
+      ];
+
+      $id = is_numeric($key) ? $key : null;
+
+      $validator = Validator::make(
+        $row,
+        $this->assetRules($id),
+        $this->assetMessages()
+      );
+      if ($validator->fails()) {
+        return response()->json([
+          'status' => 'validation_error',
+          'row' => $key,
+          'errors' => $validator->errors(),
+          'message' => $validator->errors()->first(),
+        ], 422);
+      }
+
+      $row['properties'] = isset($row['properties']) ? json_encode($row['properties']) : null;
+
+      if ($id) {
+        $row['id'] = $id;
+        $updateData[] = $row;
+      } else {
+        $insertData[] = $row;
+      }
+    }
+    Log::info("insertdata: " . json_encode($insertData));
+    Log::info(message: "updateData: " . json_encode($updateData));
+
+
+    try {
+      DB::transaction(function () use (
+        $insertData,
+        $updateData,
+        $rows,
+        $user
+      ) {
+        Asset::upsert(
+          array_map(fn($row) => array_merge($row, [
+            'modified_by' => $user['emp_id'] ?? null,
+            'modified_at' => Carbon::now(),
+          ]), $updateData),
+          ['id'],
+          ['code', 'properties', 'location_id', 'modified_by', 'modified_at']
+        );
+
+        Asset::insert(
+          array_map(fn($row) => array_merge($row, [
+            'modified_by' => $user['emp_id'] ?? null,
+            'modified_at' => Carbon::now(),
+          ]), $insertData)
+        );
+      });
+    } catch (Exception $e) {
+      return response()->json(['status' => 'error', 'message' => $e->getMessage()], 500);
+    }
+
+    return response()->json(['status' => 'ok']);
   }
 
   public function store(Request $request)

@@ -16,6 +16,7 @@ import TimeLine from "@/Components/TimeLine";
 import { TOGGLE_UTILITY_TRASH_STATUS_BUTTONS } from "@/Constants/togglerButtons";
 import TogglerButtons from "@/Components/TogglerButtons";
 import clsx from "clsx";
+import SearchInput from "../SearchInput";
 const UtilityTrashList = () => {
     const toast = useToast();
 
@@ -31,7 +32,7 @@ const UtilityTrashList = () => {
     console.group("🚀 ~ UtilityTrashList ~ serverUtilityTrash");
     console.log(
         "🚀 ~ UtilityTrashList ~ serverUtilityTrash:",
-        serverUtilityTrash
+        serverUtilityTrash,
     );
     console.log("🚀 ~ UtilityTrashList ~ serverSearch:", serverSearch);
     console.log("🚀 ~ UtilityTrashList ~ serverPerPage:", serverPerPage);
@@ -66,7 +67,7 @@ const UtilityTrashList = () => {
     const [maxItem, setMaxItem] = useState(serverPerPage || 10);
     const [selectedEntry, setSelectedEntry] = useState(null);
     const [currentPage, setCurrentPage] = useState(
-        serverUtilityTrash.current_page || 1
+        serverUtilityTrash.current_page || 1,
     );
 
     const {
@@ -168,7 +169,7 @@ const UtilityTrashList = () => {
                     body: {
                         id: selectedEntry.id,
                     },
-                }
+                },
             );
 
             refresh();
@@ -244,11 +245,10 @@ const UtilityTrashList = () => {
                                 <path d="m21 21-4.3-4.3"></path>
                             </g>
                         </svg>
-                        <input
-                            type="search"
+                        <SearchInput
                             placeholder="Search"
-                            value={searchInput}
-                            onChange={(e) => setSearchInput(e.target.value)}
+                            initialSearchInput={searchInput}
+                            onSearchChange={setSearchInput}
                         />
                     </label>
                 </div>
@@ -323,13 +323,13 @@ const UtilityTrashList = () => {
                                 <td>
                                     {formatTimestamp(
                                         entry?.date,
-                                        DATE_ONLY_FORMAT
+                                        DATE_ONLY_FORMAT,
                                     )}
                                 </td>
                                 <td>
                                     {formatTimestamp(
                                         entry?.date,
-                                        TIME_ONLY_FORMAT
+                                        TIME_ONLY_FORMAT,
                                     )}
                                 </td>
                                 <td>
@@ -369,13 +369,13 @@ const UtilityTrashList = () => {
                                                 "btn btn-secondary btn-sm",
                                                 entry?.verified_by
                                                     ? "hidden"
-                                                    : ""
+                                                    : "",
                                             )}
                                             onClick={() => {
                                                 setSelectedEntry(entry);
                                                 console.log(
                                                     "🚀 ~ UtilityTrashList ~ entry:",
-                                                    entry
+                                                    entry,
                                                 );
 
                                                 verifyModalRef.current.open();

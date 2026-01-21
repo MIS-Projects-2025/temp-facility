@@ -2,13 +2,8 @@ import Dropdown from "@/Components/sidebar/Dropdown";
 import SidebarLink from "@/Components/sidebar/SidebarLink";
 import { usePage } from "@inertiajs/react";
 import { FaGasPump, FaTrash } from "react-icons/fa";
-import { FaFireExtinguisher, FaBiohazard } from "react-icons/fa6";
-import {
-    LuLayoutDashboard,
-    LuListChecks,
-    LuList,
-    LuPackage,
-} from "react-icons/lu";
+import { FaFireExtinguisher, FaBiohazard, FaCubes } from "react-icons/fa6";
+import { LuLayoutDashboard } from "react-icons/lu";
 import { TbAirConditioning } from "react-icons/tb";
 import { GiChemicalDrop, GiWaterTank } from "react-icons/gi";
 import { WiHumidity } from "react-icons/wi";
@@ -16,6 +11,8 @@ import { IoWaterSharp } from "react-icons/io5";
 import { FaLocationDot } from "react-icons/fa6";
 import { MdChecklist } from "react-icons/md";
 import { RiCalendarScheduleLine } from "react-icons/ri";
+import { FaTools } from "react-icons/fa";
+import { FaListAlt } from "react-icons/fa";
 
 import {
     MdAir,
@@ -163,13 +160,29 @@ export default function NavLinks({ isCollapse }) {
                 isIconOnly={isCollapse}
             />
 
-            {/* <SidebarLink
-                href={route("schedules.index")}
-                label="Schedules"
-                icon={<RiCalendarScheduleLine className="w-full h-full" />}
+            <SidebarLink
+                href={route("checklist-assets.index")}
+                label="Checklist Assets"
+                icon={<FaListAlt className="w-full h-full" />}
                 notifications={5}
                 isIconOnly={isCollapse}
-            /> */}
+            />
+
+            <SidebarLink
+                href={route("assets.index")}
+                label="Assets"
+                icon={<FaCubes className="w-full h-full" />}
+                notifications={5}
+                isIconOnly={isCollapse}
+            />
+
+            <SidebarLink
+                href={route("asset-pm-schedule.index")}
+                label="Assets PM Schedule"
+                icon={<FaTools className="w-full h-full" />}
+                notifications={5}
+                isIconOnly={isCollapse}
+            />
 
             {/* TODO: use checklist table instead of separate table??? */}
             <Dropdown

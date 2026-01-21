@@ -9,6 +9,7 @@ use App\Http\Controllers\UtilityTrashController;
 use App\Http\Controllers\ChecklistItemsController;
 use App\Http\Controllers\CheckItemsController;
 use App\Http\Controllers\AssetsController;
+use App\Http\Controllers\ChecklistAssetsController;
 use App\Http\Controllers\AssetPmSchedulesController;
 use App\Http\Controllers\ChecklistItemSchedulesController;
 use App\Http\Controllers\SchedulesController;
@@ -22,7 +23,7 @@ Route::middleware([ApiAuthMiddleware::class])
   ->group(function () {
 
     Route::prefix('locations')->name('locations.')->group(function () {
-      Route::get('/', [LocationController::class, 'getAllLocation'])
+      Route::get('/', [LocationController::class, 'index'])
         ->name('index');
       Route::patch('/bulk-update', [LocationController::class, 'bulkUpdate'])
         ->name('bulkUpdate');
@@ -105,6 +106,29 @@ Route::middleware([ApiAuthMiddleware::class])
         ->name('delete');
       Route::patch('/{id}/update', [AssetsController::class, 'update'])
         ->name('update');
+      Route::get('/all-assets', [AssetsController::class, 'getAllAssets'])
+        ->name('all-assets');
+      Route::patch('/bulk-update', [AssetsController::class, 'bulkUpdate'])
+        ->name('bulkUpdate');
+      Route::delete('/bulk-delete', [AssetsController::class, 'massGenocide'])
+        ->name('massGenocide');
+    });
+
+    Route::prefix('checklist-assets')->name('checklist-assets.')->group(function () {
+      Route::get('/', [ChecklistAssetsController::class, 'index'])
+        ->name('index');
+      Route::post('/add', [ChecklistAssetsController::class, 'store'])
+        ->name('add');
+      Route::delete('/{id}/delete', [ChecklistAssetsController::class, 'destroy'])
+        ->name('delete');
+      Route::patch('/{id}/update', [ChecklistAssetsController::class, 'update'])
+        ->name('update');
+      Route::get('/all-checklist-assets', [ChecklistAssetsController::class, 'getAllChecklistAssets'])
+        ->name('all-assets');
+      Route::patch('/bulk-update', [ChecklistAssetsController::class, 'bulkUpdate'])
+        ->name('bulkUpdate');
+      Route::delete('/bulk-delete', [ChecklistAssetsController::class, 'massGenocide'])
+        ->name('massGenocide');
     });
 
     Route::prefix('schedules')->name('schedules.')->group(function () {
@@ -118,7 +142,7 @@ Route::middleware([ApiAuthMiddleware::class])
         ->name('update');
     });
 
-    Route::prefix('asset_pm_schedules')->name('asset_pm_schedules.')->group(function () {
+    Route::prefix('asset-pm-schedules')->name('asset-pm-schedules.')->group(function () {
       Route::get('/', [AssetPmSchedulesController::class, 'index'])
         ->name('index');
       Route::post('/add', [AssetPmSchedulesController::class, 'store'])
@@ -127,6 +151,10 @@ Route::middleware([ApiAuthMiddleware::class])
         ->name('delete');
       Route::patch('/{id}/update', [AssetPmSchedulesController::class, 'update'])
         ->name('update');
+      Route::patch('/bulk-update', [AssetPmSchedulesController::class, 'bulkUpdate'])
+        ->name('bulkUpdate');
+      Route::delete('/bulk-delete', [AssetPmSchedulesController::class, 'massGenocide'])
+        ->name('massGenocide');
     });
 
     Route::prefix('checklist_item_schedules')->name('checklist_item_schedules.')->group(function () {

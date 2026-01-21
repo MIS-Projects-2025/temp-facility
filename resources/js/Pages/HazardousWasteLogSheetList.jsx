@@ -9,6 +9,7 @@ import Modal from "@/Components/Modal";
 import { useToast } from "@/Hooks/useToast";
 import Pagination from "@/Components/Pagination";
 import { FaEdit, FaPlus, FaTrash } from "react-icons/fa";
+import SearchInput from "./SearchInput";
 
 const HazardousWasteLogSheet = () => {
     const toast = useToast();
@@ -23,7 +24,7 @@ const HazardousWasteLogSheet = () => {
     console.group("🚀 ~ UtilityTrashList ~ serverUtilityTrash");
     console.log(
         "🚀 ~ UtilityTrashList ~ serverUtilityTrash:",
-        serverHazardousWaste
+        serverHazardousWaste,
     );
     console.log("🚀 ~ UtilityTrashList ~ serverSearch:", serverSearch);
     console.log("🚀 ~ UtilityTrashList ~ serverPerPage:", serverPerPage);
@@ -40,7 +41,7 @@ const HazardousWasteLogSheet = () => {
     const [maxItem, setMaxItem] = useState(serverPerPage || 10);
     const [selectedEntry, setSelectedEntry] = useState(null);
     const [currentPage, setCurrentPage] = useState(
-        serverHazardousWaste.current_page || 1
+        serverHazardousWaste.current_page || 1,
     );
 
     const {
@@ -116,7 +117,7 @@ const HazardousWasteLogSheet = () => {
                     body: {
                         reference_no: selectedEntry.reference_no,
                     },
-                }
+                },
             );
 
             refresh();
@@ -175,30 +176,11 @@ const HazardousWasteLogSheet = () => {
                         </div>
                     </div>
 
-                    <label className="input">
-                        <svg
-                            className="h-[1em] opacity-50"
-                            xmlns="http://www.w3.org/2000/svg"
-                            viewBox="0 0 24 24"
-                        >
-                            <g
-                                strokeLinejoin="round"
-                                strokeLinecap="round"
-                                strokeWidth="2.5"
-                                fill="none"
-                                stroke="currentColor"
-                            >
-                                <circle cx="11" cy="11" r="8"></circle>
-                                <path d="m21 21-4.3-4.3"></path>
-                            </g>
-                        </svg>
-                        <input
-                            type="text"
-                            placeholder="search by emp id or reference no."
-                            value={searchInput}
-                            onChange={(e) => setSearchInput(e.target.value)}
-                        />
-                    </label>
+                    <SearchInput
+                        placeholder="search by emp id or reference no."
+                        initialSearchInput={searchInput}
+                        onSearchChange={setSearchInput}
+                    />
                 </div>
 
                 <table className="table w-full table-auto table-xs">
@@ -229,7 +211,7 @@ const HazardousWasteLogSheet = () => {
                                             {
                                                 reference_no:
                                                     entry.reference_no,
-                                            }
+                                            },
                                         )}
                                         className="btn btn-ghost btn-sm btn-primary"
                                     >

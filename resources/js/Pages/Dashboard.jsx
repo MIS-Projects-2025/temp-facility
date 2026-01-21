@@ -4,14 +4,13 @@ import { Head, usePage } from "@inertiajs/react";
 
 export default function Dashboard() {
     const props = usePage().props;
-    const { data: locations } = useLocationStore();
-    console.log("🚀 ~ Dashboard ~ locations:", locations);
+
     return (
         <>
             <Head title="Dashboard" />
 
             <h1 className="text-2xl font-bold">Dashboard</h1>
-            <MultiSelectSearchableDropdown
+            {/* <MultiSelectSearchableDropdown
                 options={
                     locations?.map((opt) => ({
                         value: opt.location_name,
@@ -27,7 +26,7 @@ export default function Dashboard() {
                 disableSelectedContainer
                 singleSelect
                 disableSearch
-            />
+            /> */}
         </>
     );
 }

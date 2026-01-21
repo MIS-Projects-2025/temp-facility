@@ -14,16 +14,17 @@ class Asset extends Model
     'checklist_id',
     'properties',
     'code',
-    'location',
+    'location_id',
+    'modified_by',
+    'modified_at',
   ];
 
-  public function checklist()
-  {
-    return $this->belongsTo(Checklist::class, 'checklist_id');
-  }
+  protected $casts = [
+    'properties' => 'array',
+  ];
 
   public function location()
   {
-    return $this->belongsTo(Location::class, 'location');
+    return $this->belongsTo(Location::class, 'location_id');
   }
 }

@@ -10,7 +10,7 @@ const DefaultEditableColumn = {
             table.options.meta?.updateData(
                 index,
                 column?.columnDef.accessorKey,
-                value
+                value,
             );
         };
 
@@ -21,7 +21,7 @@ const DefaultEditableColumn = {
         return (
             <input
                 value={value}
-                className="w-full"
+                className="w-full hover:ring hover:ring-primary"
                 onChange={(e) => setValue(e.target.value)}
                 onBlur={onBlur}
             />

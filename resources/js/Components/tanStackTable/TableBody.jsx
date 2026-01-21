@@ -26,6 +26,7 @@ export default function TableBody({
 
     return (
         <tbody
+            className="mb-40"
             style={{
                 display: "grid",
                 height: `${rowVirtualizer.getTotalSize()}px`, //tells scrollbar how big the table is
@@ -61,6 +62,7 @@ function TableBodyRow({
 }) {
     return (
         <tr
+            className="hover:outline outline-secondary/50"
             data-index={virtualRow.index}
             ref={(node) => rowVirtualizer.measureElement(node)}
             key={row.id}
@@ -77,6 +79,7 @@ function TableBodyRow({
                         className={clsx({
                             "animate-hehe bg-base-300 w-full text-[0px]":
                                 isLoading,
+                            "bg-base-300": rowIndex % 2 === 0,
                         })}
                         key={cell.id}
                         style={{
@@ -89,7 +92,7 @@ function TableBodyRow({
                     >
                         {flexRender(
                             cell.column.columnDef.cell,
-                            cell.getContext()
+                            cell.getContext(),
                         )}
                     </td>
                 );

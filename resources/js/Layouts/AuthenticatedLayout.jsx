@@ -9,14 +9,14 @@ import { useChecklistStore } from "@/Store/checklistStore";
 export default function AuthenticatedLayout({ header, children }) {
     const { url } = usePage();
     const { emp_data } = usePage().props;
-    const { fetchLocations } = useLocationStore();
+    // const { fetchLocations } = useLocationStore();
     const { fetchChecklists } = useChecklistStore();
     const [hasUserFetched, setHasUserFetched] = useState(false);
 
     useEffect(() => {
         if (!emp_data || hasUserFetched) return;
 
-        fetchLocations();
+        // fetchLocations();
         fetchChecklists();
 
         setHasUserFetched(true);

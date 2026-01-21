@@ -38,7 +38,7 @@ export default function ChangeReviewModal({
                         ([rowId, rowChanges]) => (
                             <div
                                 key={rowId}
-                                className="border-b border-b-base-300 p-3"
+                                className="border border-base-content/25 p-3"
                             >
                                 <div className="font-medium mb-2">
                                     Row ID: {rowId}
@@ -47,7 +47,7 @@ export default function ChangeReviewModal({
                                     {rowChanges.map((c, idx) => (
                                         <li
                                             key={idx}
-                                            className="flex justify-between items-center rounded border-b border-b-base-300"
+                                            className="flex bg-base-300/75 justify-between items-center"
                                         >
                                             <span className="font-medium w-4/12">
                                                 {c.field}
@@ -74,7 +74,7 @@ export default function ChangeReviewModal({
                                     ))}
                                 </ul>
                             </div>
-                        )
+                        ),
                     )}
                 </div>
 
@@ -176,7 +176,7 @@ function KeyValueRenderer({ data, beforeData = null, indent = 0 }) {
                                     <span>
                                         {highlightDiff(
                                             beforeValue ?? "",
-                                            value ?? ""
+                                            value ?? "",
                                         )}
                                     </span>
                                 </div>

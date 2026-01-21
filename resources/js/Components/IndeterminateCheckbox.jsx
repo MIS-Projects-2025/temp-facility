@@ -13,7 +13,10 @@ function IndeterminateCheckbox({ indeterminate, className = "", ...rest }) {
         <input
             type="checkbox"
             ref={ref}
-            className={className + " checkbox cursor-pointer"}
+            className={
+                className +
+                " checked:checkbox-secondary checkbox cursor-pointer"
+            }
             {...rest}
         />
     );

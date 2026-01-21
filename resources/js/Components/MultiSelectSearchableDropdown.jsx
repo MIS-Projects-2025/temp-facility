@@ -40,7 +40,7 @@ const MultiSelectSearchableDropdown = memo(
 
         const [open, setOpen] = useState(false);
         const [selectedOptions, setSelectedOptions] = useState(
-            defaultSelectedOptions
+            defaultSelectedOptions,
         );
         const [searchInput, setSearchInput] = useState("");
         const [debouncedSearch, setDebouncedSearch] = useState("");
@@ -90,7 +90,7 @@ const MultiSelectSearchableDropdown = memo(
 
         const handleRemoveOption = (value) => {
             const updatedValues = selectedOptions.filter(
-                (item) => item !== value
+                (item) => item !== value,
             );
             setSelectedOptions(updatedValues);
             onChange(getSelectedValues(updatedValues));
@@ -128,7 +128,7 @@ const MultiSelectSearchableDropdown = memo(
                 (option) =>
                     option.value.toLowerCase().includes(search) ||
                     (option.label &&
-                        option.label.toLowerCase().includes(search))
+                        option.label.toLowerCase().includes(search)),
             );
         }, [debouncedSearch, options, onSearchChange]);
 
@@ -218,16 +218,21 @@ const MultiSelectSearchableDropdown = memo(
                                         name={formFieldName}
                                         value={option.value}
                                         checked={selectedOptions.includes(
-                                            option.value
+                                            option.value,
                                         )}
                                         onChange={handleChange}
                                         className={clsx(
                                             singleSelect
                                                 ? "radio radio-primary cursor-pointer"
-                                                : "checkbox checkbox-sm checkbox-primary cursor-pointer"
+                                                : "checkbox checkbox-sm checkbox-primary cursor-pointer",
                                         )}
                                     />
-                                    <span className="ml-2">{option.value}</span>
+                                    <div className="flex w-full justify-between">
+                                        <div className="ml-2">
+                                            {option.value}
+                                        </div>
+                                        <div>{option.label}</div>
+                                    </div>
                                 </label>
                             ))
                         )}
@@ -307,7 +312,7 @@ const MultiSelectSearchableDropdown = memo(
                         onFocus={() => setOpen(true)}
                         className={clsx(
                             "btn border border-base-content/20",
-                            buttonSelectorClassName
+                            buttonSelectorClassName,
                         )}
                     >
                         {getButtonLabel()}
@@ -374,7 +379,7 @@ const MultiSelectSearchableDropdown = memo(
                 </form>
             </dialog>
         );
-    }
+    },
 );
 
 export default MultiSelectSearchableDropdown;

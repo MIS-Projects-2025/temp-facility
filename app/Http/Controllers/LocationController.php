@@ -8,42 +8,47 @@ use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\Cache;
 use App\Models\Location;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use App\Support\CacheKeys;
-use Faker\Factory as Faker;
+use App\Traits\MassDeletesByIds;
 
 class LocationController extends Controller
 {
-  // public function index(Request $request)
-  // {
-  //   $faker = Faker::create();
-
-  //   $allLocations = [];
-
-  //   for ($i = 1; $i <= 1000; $i++) {
-  //     $allLocations[] = [
-  //       'id' => $i,
-  //       'location_name' => $faker->city(),       // random city name
-  //       'created_by' => $faker->numberBetween(1, 100),
-  //       'created_at' => $faker->dateTimeThisYear()->format('Y-m-d H:i:s'),
-  //       'modified_by' => $faker->numberBetween(1, 100),
-  //       'modified_at' => $faker->dateTimeThisYear()->format('Y-m-d H:i:s'),
-  //     ];
-  //   }
-
-  //   return Inertia::render('LocationList', [
-  //     'locations' => $allLocations,
-  //   ]);
-  // }
+  use MassDeletesByIds;
 
   public function index(Request $request)
   {
-    $allLocations = Location::query()
-      ->get();
+    $search = $request->input('search', '');
+    $perPage = $request->input('perPage', 999);
+    $totalEntries = Location::count();
+
+    $locations = Location::query()
+      ->when($search, function ($query, $search) {
+        // todo : add search for performed_by and verified_by using the name
+        $query->Where('location_name', 'like', "%{$search}%");
+      })
+      ->orderBy('location_name')
+      ->paginate($perPage)
+      ->withQueryString();
+
+    Log::info('locations: ', [$locations]);
+
+    if ($request->wantsJson()) {
+      return response()->json([
+        'locations' => $locations,
+        'search' => $search,
+        'perPage' => $perPage,
+        'totalEntries' => $totalEntries,
+      ]);
+    }
 
     return Inertia::render('LocationList', [
-      'locations' => $allLocations,
+      'locations' => $locations,
+      'search' => $search,
+      'perPage' => $perPage,
+      'totalEntries' => $totalEntries,
     ]);
   }
 
@@ -174,25 +179,12 @@ class LocationController extends Controller
 
   public function massGenocide(Request $request)
   {
-    $ids = $request->input('ids'); // expect array
-
-    if (!is_array($ids) || empty($ids)) {
-      return response()->json([
-        'status' => 'error',
-        'message' => 'No IDs provided.',
-      ], 422);
-    }
-
-    $deleted = Location::whereIn('id', $ids)->delete();
-
-    Cache::forget(CacheKeys::locationsAll());
-
-    return response()->json([
-      'success' => true,
-      'deleted_count' => $deleted,
-    ]);
+    return $this->massDeleteByIds(
+      $request,
+      Location::class,
+      CacheKeys::locationsAll()
+    );
   }
-
 
   public function getAllLocation(Request $request)
   {

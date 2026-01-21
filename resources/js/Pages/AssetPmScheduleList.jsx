@@ -1,46 +1,75 @@
 import MultiSelectSearchableDropdown from "@/Components/MultiSelectSearchableDropdown";
 import { useFetch } from "@/Hooks/useFetch";
-import { useChecklistStore } from "@/Store/checklistStore";
 import React, { useCallback, useState, useEffect, useRef } from "react";
-import { FaCaretDown, FaPen, FaPlus } from "react-icons/fa";
+import { FaPlus, FaSearch } from "react-icons/fa";
 import TanstackTable from "@/Components/tanStackTable/TanstackTable";
 import { useEditableTable } from "@/Hooks/useEditableTable";
 import ReadOnlyColumns from "@/Components/tanStackTable/ReadOnlyColumn";
 import CheckBoxColumn from "@/Components/tanStackTable/CheckBoxColumn";
 import { MdOutlineDelete } from "react-icons/md";
-import { GoChecklist } from "react-icons/go";
+import Pagination from "@/Components/Pagination";
 
 import ChangeReviewModal from "@/Components/ChangeReviewModal";
 import DeleteModal from "@/Components/DeleteModal";
 import { useMutation } from "@/Hooks/useMutation";
 import getObjectChanges from "@/Utils/getObjectChanges";
 import toast from "react-hot-toast";
-import { router } from "@inertiajs/react";
+import { router, usePage } from "@inertiajs/react";
 import clsx from "clsx";
 import { FaTimes, FaSave } from "react-icons/fa";
 import { FaPencil } from "react-icons/fa6";
+import JSONcell from "@/Components/tanStackTable/JSONCell";
 import { createClickableCell } from "@/Components/tanStackTable/ClickableCell";
-
-const perPageF3RawPackage = 30;
+import SearchInput from "./SearchInput";
 const checkItemListModalID = "checklist-item-modal";
-const scheduleModalID = "schedule-modal";
 
-const ChecklistList = () => {
+const scheduleModalID = "schedule-asset-pm-schedule-modal";
+const assetModalID = "asset-pm-schedule-assets-modal";
+
+const AssetPmScheduleList = () => {
     const {
-        data: checklists,
-        isLoading,
-        fetchChecklists,
-    } = useChecklistStore();
+        assetPmSchedules: serverAssetPmSchedules,
+        search: serverSearch,
+        perPage: serverPerPage,
+        totalEntries,
+    } = usePage().props;
+
+    console.log(
+        "🚀 ~ AssetList ~ serverAssetPmSchedules:",
+        serverAssetPmSchedules,
+    );
+
+    const start = serverAssetPmSchedules.from;
+    const end = serverAssetPmSchedules.to;
+    const filteredTotal = serverAssetPmSchedules.total;
     const [selectedChecklist, setSelectedChecklist] = React.useState(null);
+    const [maxItem, setMaxItem] = useState(serverPerPage || 30);
+    const overallTotal = totalEntries ?? filteredTotal;
+    const [searchInput, setSearchInput] = useState(serverSearch || "");
     const [originalData, setOriginalData] = useState({});
     const [selectedEditItem, setSelectedEditItem] = useState([[]]);
     const [selectedCell, setSelectedCell] = useState(null);
-
+    const [currentPage, setCurrentPage] = useState(
+        serverAssetPmSchedules.current_page || 1,
+    );
     const [checkItemSearchInput, setCheckItemSearchInput] = useState("");
 
     useEffect(() => {
-        fetchChecklists();
-    }, []);
+        const timer = setTimeout(() => {
+            router.reload({
+                data: {
+                    search: searchInput,
+                    perPage: maxItem,
+                    page: 1,
+                },
+                preserveState: true,
+                preserveScroll: true,
+            });
+            setCurrentPage(1);
+        }, 700);
+
+        return () => clearTimeout(timer);
+    }, [searchInput]);
 
     const {
         mutate: mutate,
@@ -51,54 +80,38 @@ const ChecklistList = () => {
     } = useMutation();
 
     const {
-        data: checkItems,
-        isLoading: isLoadingCheckItems,
-        errorMessage: errorMessageCheckItems,
-        errorData: errorDataCheckItems,
-        cancel: cancelCheckItems,
-        fetch: fetchCheckItems,
-    } = useFetch(route("api.check-items.index"), {
-        auto: false,
+        data: schedules,
+        isLoading: isLoadingSchedules,
+        errorMessage: errorMessageSchedules,
+        errorData: errorDataSchedules,
+        cancel: cancelSchedules,
+        fetch: fetchSchedules,
+    } = useFetch(route("api.schedules.index"), {
+        // auto: false,
     });
 
     const {
-        data: checklistItems,
-        isLoading: isChecklistItemsLoading,
-        errorMessage: ChecklistItemsErrorMessage,
-        fetch: checklistItemsFetch,
-        abort: checklistItemsAbort,
-    } = useFetch(route("api.checklist-items.all-check-items"), {
-        params: {
-            checklist_id: selectedChecklist?.id || "",
-        },
-        auto: false,
+        data: assets,
+        isLoading: isLoadingAsset,
+        errorMessage: errorMessageAssets,
+        errorData: errorDataAssets,
+        cancel: cancelAssets,
+        fetch: fetchAssets,
+    } = useFetch(route("api.assets.index"), {
+        // auto: false,
     });
 
-    const closeModals = () => {
-        document.getElementById(checkItemListModalID).close();
-        document.getElementById(scheduleModalID).close();
-    };
+    console.log("🚀 ~ AssetList ~ schedules:", schedules);
 
     const handleEditModalSelect = (selected) => {
-        console.log("🚀 ~ handleEditModalSelect ~ selectedCell:", selectedCell);
         if (selectedCell === null) return;
-
-        console.log(
-            "🚀 ~ handleEditModalSelect ~ tedCell?.row?.index,:",
-            selectedCell?.row?.index,
-        );
-        console.log(
-            "🚀 ~ handleEditModalSelect ~ selectedCell?.rootKey:",
-            selectedCell?.rootKey,
-        );
-        console.log("🚀 ~ handleEditModalSelect ~ selected[0]:", selected[0]);
         table.options.meta?.updateData(
             selectedCell?.row?.index,
             selectedCell?.rootKey,
             selected[0],
         );
 
-        closeModals();
+        document.getElementById(scheduleModalID).close();
     };
 
     const columns = React.useMemo(
@@ -110,35 +123,42 @@ const ChecklistList = () => {
                 options: { size: 60, enableHiding: false },
             }),
             {
-                accessorKey: "checklist_id",
-                header: "Checklist ID",
-                meta: { hidden: true },
-                // cell: (info) => null,
+                header: "Asset Info",
+                columns: [
+                    {
+                        accessorKey: "assets.code",
+                        header: "Code",
+                        cell: createClickableCell({
+                            modalID: assetModalID,
+                            handleCellClick: handleEditedItemClick,
+                        }),
+                    },
+                    ReadOnlyColumns({
+                        accessorKey: "assets.location.location_name",
+                        header: "Location",
+                        options: { size: 160 },
+                    }),
+                ],
             },
-            {
-                accessorKey: "item.name",
-                header: () => "Action/Check Item",
-                // accessorFn: (row) => row.item.name,
-                accessorFn: (row) => row.item?.name ?? null,
-                size: 340,
-                cell: createClickableCell({
-                    modalID: checkItemListModalID,
-                    handleCellClick: handleEditedItemClick,
-                }),
-            },
-            {
-                accessorKey: "criteria",
-                header: () => "Value/Criteria",
-                size: 340,
-            },
+            // {
+            //     accessorKey: "assets.code",
+            //     header: () => "Code",
+            //     size: 250,
+            // },
+            // {
+            //     accessorKey: "assets.location",
+            //     header: () => "Code",
+            //     size: 250,
+            // },
             {
                 accessorKey: "schedule.schedule_name",
-                header: "Schedule",
+                header: () => "Schedule",
                 accessorFn: (row) => row.schedule?.schedule_name,
-                size: 340,
+                size: 500,
+                // cell: JSONcell,
                 cell: createClickableCell({
                     modalID: scheduleModalID,
-                    deletable: true,
+                    deletable: false,
                     handleCellClick: handleEditedItemClick,
                 }),
             },
@@ -161,38 +181,15 @@ const ChecklistList = () => {
     );
 
     const { table, data, setData, editedRows, setEditedRows } =
-        useEditableTable(checklistItems || [], columns);
-
-    const {
-        data: schedules,
-        isLoading: isLoadingSchedules,
-        errorMessage: errorMessageSchedules,
-        errorData: errorDataSchedules,
-        cancel: cancelSchedules,
-        fetch: fetchSchedules,
-    } = useFetch(route("api.schedules.index"), {
-        // auto: false,
-    });
-
-    console.log("🚀 ~ ChecklistList ~ checkItems:", checkItems);
-    console.log("🚀 ~ ChecklistList ~ schedules:", schedules);
+        useEditableTable(serverAssetPmSchedules.data || [], columns);
 
     const goToPageCheckItem = (page) => {
-        fetchCheckItems({
+        fetchAssets({
             search: checkItemSearchInput,
             page: page,
-            perPage: perPageF3RawPackage,
+            perPage: maxItem,
         });
     };
-
-    const handleCheckItemsSearchChange = useCallback((searchValue) => {
-        fetchCheckItems({
-            search: searchValue,
-            page: 1,
-            perPage: perPageF3RawPackage,
-        });
-        setCheckItemSearchInput(searchValue);
-    }, []);
 
     const refresh = () => {
         router.reload();
@@ -200,7 +197,7 @@ const ChecklistList = () => {
 
     const handleDelete = async () => {
         try {
-            await mutate(route("api.checklist-items.massGenocide"), {
+            await mutate(route("api.asset-pm-schedules.massGenocide"), {
                 body: {
                     ids: Object.keys(table.getState().rowSelection),
                 },
@@ -217,9 +214,6 @@ const ChecklistList = () => {
     };
 
     function handleEditedItemClick(row, value, column) {
-        console.log("🚀 ~ ggggggggggggggggggg ~ row:", row);
-        console.log("🚀 ~ handleEditedItemClick ~ value:", value);
-        console.log("🚀 ~ handleEditedItemClick ~ column:", column);
         const rootKey = column?.columnDef?.accessorKey?.split(".")[0];
         setSelectedCell({ rootKey, row, value, column });
         setSelectedEditItem([value]);
@@ -233,11 +227,10 @@ const ChecklistList = () => {
 
     const saveChanges = async () => {
         try {
-            await mutate(route("api.checklist-items.bulkUpdate"), {
+            await mutate(route("api.asset-pm-schedules.bulkUpdate"), {
                 method: "PATCH",
                 body: editedRows,
             });
-            checklistItemsFetch();
             document.getElementById(saveChangeIDModal).close();
 
             toast.success("Changes updated successfully!");
@@ -249,6 +242,16 @@ const ChecklistList = () => {
             console.error(error);
         }
     };
+
+    const handleAssetSearchChange = useCallback((searchValue) => {
+        fetchAssets({
+            search: searchValue,
+            page: 1,
+            perPage: maxItem,
+        });
+        setCheckItemSearchInput(searchValue);
+    }, []);
+
     const handleResetChanges = () => {
         if (Object.keys(editedRows).length === 0) {
             alert("No changes to reset.");
@@ -269,19 +272,7 @@ const ChecklistList = () => {
     }, [editedRows]);
 
     React.useEffect(() => {
-        if (!checklists || checklists?.length === 0) {
-            return;
-        }
-
-        setSelectedChecklist(checklists[0] || null);
-    }, [checklists]);
-
-    React.useEffect(() => {
-        console.log(
-            "🚀 ~ change in c h e c k l i s t i t e m s:",
-            checklistItems,
-        );
-        const rows = checklistItems || [];
+        const rows = serverAssetPmSchedules.data || [];
         setData(rows);
 
         const map = {};
@@ -290,14 +281,7 @@ const ChecklistList = () => {
         });
         setOriginalData(map);
         setEditedRows({});
-    }, [checklistItems]);
-
-    React.useEffect(() => {
-        checklistItemsFetch();
-        return () => {
-            checklistItemsAbort();
-        };
-    }, [selectedChecklist]);
+    }, [serverAssetPmSchedules]);
 
     const handleAddNewChecklist = () => {
         router.visit(route("checklist-items.create"));
@@ -313,6 +297,48 @@ const ChecklistList = () => {
         setChangesToReview(changes);
     };
 
+    const handleAddNewAsset = () => {
+        setData((prevData) => {
+            return [
+                ...prevData,
+                {
+                    id: `new-${table.getRowCount() + 1}`,
+                    code: null,
+                    properties: null,
+                    location: null,
+                    created_at: null,
+                    updated_at: null,
+                },
+            ];
+        });
+        setEditedRows((prevData) => {
+            return {
+                ...prevData,
+                [`new-${table.getRowCount() + 1}`]: {
+                    id: `new-${table.getRowCount() + 1}`,
+                    code: null,
+                    properties: null,
+                    location: null,
+                    created_at: null,
+                    updated_at: null,
+                },
+            };
+        });
+    };
+
+    const goToPage = (page) => {
+        router.reload({
+            data: {
+                search: searchInput,
+                perPage: maxItem,
+                page,
+            },
+            preserveState: true,
+            preserveScroll: true,
+        });
+        setCurrentPage(page);
+    };
+
     const commonEditModalConfig = {
         defaultSelectedOptions: [selectedEditItem],
         controlledSelectedOptions: selectedEditItem,
@@ -325,47 +351,16 @@ const ChecklistList = () => {
         paginated: true,
     };
 
-    const handleAddNewChecklistItem = () => {
-        setData((prevData) => {
-            return [
-                ...prevData,
-                {
-                    id: `new-${table.getRowCount() + 1}`,
-                    name: null,
-                    checklist_id: selectedChecklist?.id,
-                    criteria: null,
-                    schedule: null,
-                    created_at: null,
-                    updated_at: null,
-                },
-            ];
-        });
-        setEditedRows((prevData) => {
-            return {
-                ...prevData,
-                [`new-${table.getRowCount() + 1}`]: {
-                    id: `new-${table.getRowCount() + 1}`,
-                    name: null,
-                    checklist_id: selectedChecklist?.id,
-                    criteria: null,
-                    schedule: null,
-                    created_at: null,
-                    updated_at: null,
-                },
-            };
-        });
-    };
-
     return (
         <div>
             <div className="w-full">
                 <div className="flex gap-2 sticky right-0 mb-4">
                     <button
                         className="btn btn-primary"
-                        onClick={handleAddNewChecklistItem}
+                        onClick={handleAddNewAsset}
                     >
                         <FaPlus className="mr-2" />
-                        Add New Checklist Item
+                        Add New Asset
                     </button>
                     <button
                         className="btn btn-primary"
@@ -391,71 +386,25 @@ const ChecklistList = () => {
                     >
                         <MdOutlineDelete className="w-full h-full" />
                     </button>
-                </div>
 
-                <div className="flex gap-4">
-                    <MultiSelectSearchableDropdown
-                        options={
-                            checklists?.map((checklist) => ({
-                                value: checklist.name,
-                                label: checklist.form_control_no,
-                                original: checklist,
-                            })) || []
-                        }
-                        onChange={(value) => {
-                            console.log("🚀 ~ ChecklistList ~ value:", value);
-                            setSelectedChecklist(value[0]);
-                        }}
-                        returnKey="original"
-                        defaultSelectedOptions={
-                            selectedChecklist?.name
-                                ? [selectedChecklist.name]
-                                : []
-                        }
-                        controlledSelectedOptions={
-                            selectedChecklist?.name
-                                ? [selectedChecklist.name]
-                                : []
-                        }
-                        customButtonLabel={({ selectedOptions }) => {
-                            return (
-                                <div>
-                                    {selectedOptions.length > 0 ? (
-                                        <div className="flex items-center justify-between w-full">
-                                            <h1 className="w-full text-lg">
-                                                Checklist of{" "}
-                                                {selectedOptions[0]}
-                                            </h1>
-                                            <FaCaretDown className="inline-block ml-2" />
-                                        </div>
-                                    ) : (
-                                        "Select Checklist"
-                                    )}
-                                </div>
-                            );
-                        }}
-                        disableSelectedContainer
-                        disableClearSelection
-                        disableTooltip
-                        isLoading={isLoading}
-                        itemName="Checklist List"
-                        prompt="Select Checklist"
-                        contentClassName="h-50"
-                        buttonSelectorClassName="w-full h-auto btn-soft btn-primary text-left"
-                        singleSelect
+                    <SearchInput
+                        placeholder="search by asset or checklist"
+                        initialSearchInput={searchInput}
+                        onSearchChange={setSearchInput}
                     />
-                    <button
-                        className="btn btn-primary"
-                        onClick={handleAddNewChecklist}
-                    >
-                        <GoChecklist className="w-6 h-6" />
-                        Add New Checklist
-                    </button>
                 </div>
 
-                <TanstackTable
-                    table={table}
-                    isTableLoading={isChecklistItemsLoading}
+                <TanstackTable table={table} />
+
+                <Pagination
+                    links={serverAssetPmSchedules.links}
+                    currentPage={currentPage}
+                    goToPage={goToPage}
+                    filteredTotal={filteredTotal}
+                    overallTotal={overallTotal}
+                    start={start}
+                    end={end}
+                    contentClassName=""
                 />
 
                 <ChangeReviewModal
@@ -477,27 +426,26 @@ const ChecklistList = () => {
                     onClose={() => deleteModalRef.current?.close()}
                 />
                 <MultiSelectSearchableDropdown
-                    modalId={checkItemListModalID}
+                    modalId={assetModalID}
                     options={
-                        checkItems?.checkItems.data?.map((item) => ({
-                            value: String(item.name),
-                            label: null,
+                        assets?.assets?.data?.map((item) => ({
+                            value: String(item.code),
+                            label: item?.location?.location_name,
                             original: item,
                         })) || []
                     }
                     onChange={handleEditModalSelect}
-                    onSearchChange={handleCheckItemsSearchChange}
-                    links={checkItems?.checkItems?.links || null}
-                    currentPage={checkItems?.checkItems?.current_page || 1}
+                    onSearchChange={handleAssetSearchChange}
+                    links={assets?.assets?.links || null}
+                    currentPage={assets?.assets?.current_page || 1}
                     goToPage={goToPageCheckItem}
-                    itemName="Check Item List"
-                    isLoading={isLoadingCheckItems}
-                    prompt="Select Check Item"
+                    itemName="Asset List"
+                    isLoading={isLoadingAsset}
+                    prompt="Select Asset"
                     contentClassName={"h-100"}
                     paginated={true}
                     {...commonEditModalConfig}
                 />
-
                 <MultiSelectSearchableDropdown
                     modalId={scheduleModalID}
                     options={
@@ -512,7 +460,8 @@ const ChecklistList = () => {
                     isLoading={isLoadingSchedules}
                     prompt="Select Schedule"
                     contentClassName={"h-150"}
-                    disableSearch={false}
+                    defaultSelectedOptions={[selectedEditItem]}
+                    controlledSelectedOptions={selectedEditItem}
                     {...commonEditModalConfig}
                 />
             </div>
@@ -520,4 +469,4 @@ const ChecklistList = () => {
     );
 };
 
-export default ChecklistList;
+export default AssetPmScheduleList;

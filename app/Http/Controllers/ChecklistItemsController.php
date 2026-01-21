@@ -10,9 +10,13 @@ use Illuminate\Validation\Rule;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Database\QueryException;
+use App\Traits\MassDeletesByIds;
 
 class ChecklistItemsController extends Controller
 {
+  use MassDeletesByIds;
+
   public function index(Request $request)
   {
     $checklistItems = ChecklistItem::query()
@@ -71,21 +75,10 @@ class ChecklistItemsController extends Controller
 
   public function massGenocide(Request $request)
   {
-    $ids = $request->input('ids'); // expect array
-
-    if (!is_array($ids) || empty($ids)) {
-      return response()->json([
-        'status' => 'error',
-        'message' => 'No IDs provided.',
-      ], 422);
-    }
-
-    $deleted = ChecklistItem::whereIn('id', $ids)->delete();
-
-    return response()->json([
-      'success' => true,
-      'deleted_count' => $deleted,
-    ]);
+    return $this->massDeleteByIds(
+      $request,
+      ChecklistItem::class
+    );
   }
 
   public function bulkUpdate(Request $request)
@@ -146,53 +139,69 @@ class ChecklistItemsController extends Controller
     Log::info("insertData " . json_encode($insertData));
     Log::info("updateDataForChecklistItem " . json_encode($updateDataForChecklistItem));
 
-    DB::transaction(function () use ($updateDataForChecklistItem, $insertData, $updateData, $rows, $user) {
-      ChecklistItem::upsert(
-        array_map(fn($row) => array_merge($row, [
-          'modified_by' => $user['emp_id'] ?? null,
-          'modified_at' => Carbon::now()
-        ]), $updateDataForChecklistItem),
-        ['id'],
-        ['item_id', 'criteria', 'checklist_id', 'modified_by', 'modified_at']
-      );
+    try {
+      DB::transaction(function () use (
+        $updateDataForChecklistItem,
+        $insertData,
+        $updateData,
+        $rows,
+        $user
+      ) {
 
-      foreach ($updateData as $row) {
-        Log::info("row: " . json_encode($row));
-        $scheduleId = $row['schedule_id'] ?? null;
-        $id = $row['id'];
-        if ($scheduleId === null) {
-          // Remove existing schedule if any
-          DB::table('entity_checklist_item_schedules')
-            ->where('checklist_item_id', $id)
-            ->delete();
-        } else {
-          // Update or insert schedule
-          DB::table('entity_checklist_item_schedules')
-            ->updateOrInsert(
-              ['checklist_item_id' => $id],
-              ['schedule_id' => $scheduleId]
-            );
+        ChecklistItem::upsert(
+          array_map(fn($row) => array_merge($row, [
+            'modified_by' => $user['emp_id'] ?? null,
+            'modified_at' => Carbon::now(),
+          ]), $updateDataForChecklistItem),
+          ['id'],
+          ['item_id', 'criteria', 'checklist_id', 'modified_by', 'modified_at']
+        );
+
+        foreach ($updateData as $row) {
+          $scheduleId = $row['schedule_id'] ?? null;
+          $id = $row['id'];
+
+          if ($scheduleId === null) {
+            DB::table('entity_checklist_item_schedules')
+              ->where('checklist_item_id', $id)
+              ->delete();
+          } else {
+            DB::table('entity_checklist_item_schedules')
+              ->updateOrInsert(
+                ['checklist_item_id' => $id],
+                ['schedule_id' => $scheduleId]
+              );
+          }
         }
+
+        foreach ($insertData as $row) {
+          $scheduleId = $row['schedule_id'] ?? null;
+          unset($row['schedule_id']);
+
+          $item = ChecklistItem::create(array_merge($row, [
+            'modified_by' => $user['emp_id'] ?? null,
+            'modified_at' => Carbon::now(),
+          ]));
+
+          if ($scheduleId !== null) {
+            DB::table('entity_checklist_item_schedules')->insert([
+              'checklist_item_id' => $item->id,
+              'schedule_id' => $scheduleId,
+            ]);
+          }
+        }
+      });
+    } catch (QueryException $e) {
+
+      // MySQL duplicate key error
+      if ($e->errorInfo[1] === 1062) {
+        return response()->json([
+          'message' => 'A checklist item with the same item and criteria already exists.'
+        ], 422);
       }
 
-      foreach ($insertData as $row) {
-        $scheduleId = $row['schedule_id'] ?? null;
-        unset($row['schedule_id']);
-
-        Log::info("row: " . $user['emp_id']);
-        $item = ChecklistItem::create(array_merge($row, [
-          'modified_by' => $user['emp_id'] ?? null,
-          'modified_at' => Carbon::now(),
-        ]));
-
-        if ($scheduleId !== null) {
-          DB::table('entity_checklist_item_schedules')->insert([
-            'checklist_item_id' => $item->id,
-            'schedule_id' => $scheduleId,
-          ]);
-        }
-      }
-    });
+      throw $e; // anything else is a real failure
+    }
 
     return response()->json(['status' => 'ok']);
   }
