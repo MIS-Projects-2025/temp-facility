@@ -1,8 +1,8 @@
 import React from "react";
-import { TableHeader } from "./TableHeader";
 import TableBody from "./TableBody";
+import { TableHeader } from "./TableHeader";
 
-const TanstackTable = ({ table, isTableLoading }) => {
+const TanstackTable = ({ table, isTableLoading, height="480px" }) => {
     const tableContainerRef = React.useRef(null);
 
     return (
@@ -12,7 +12,7 @@ const TanstackTable = ({ table, isTableLoading }) => {
             style={{
                 overflow: "auto",
                 position: "relative",
-                height: "680px",
+                height: height,
             }}
         >
             <table

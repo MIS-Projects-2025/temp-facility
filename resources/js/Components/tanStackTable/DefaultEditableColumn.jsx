@@ -2,11 +2,11 @@ import React from "react";
 
 const DefaultEditableColumn = {
     cell: ({ getValue, row: { index }, column, table }) => {
-        const initialValue = getValue();
-        const [value, setValue] = React.useState(initialValue);
+        const initialValue = getValue() ?? "";
+		const [value, setValue] = React.useState(initialValue);
 
         const onBlur = () => {
-            if (value === initialValue) return;
+            // if (value === initialValue) return;
             table.options.meta?.updateData(
                 index,
                 column?.columnDef.accessorKey,

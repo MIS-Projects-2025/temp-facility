@@ -6,14 +6,62 @@ use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Carbon\Carbon;
 use App\Models\CheckItem;
+use App\Models\ChecklistInstance;
+use App\Models\ChecklistItemResult;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Validation\Rule;
-use App\Services\BulkUpserter;
 
-class CheckItemsController extends Controller
+class CheckItemsResultController extends Controller
 {
+  public function recordResult(Request $request)
+  {
+    // Validate request
+    $validated = $request->validate([
+      'asset_id' => 'required|integer|exists:assets,id',
+      'checklist_id' => 'required|integer|exists:checklists,id',
+      'notes' => 'nullable|string|max:1000',
+      'items' => 'required|array|min:1',
+      'items.*.checklist_item_id' => 'required|integer|exists:checklist_items,id',
+      'items.*.item_status' => 'nullable|string',
+      // 'items.*.item_status' => 'required|string|in:pending,completed,failed',
+      'items.*.remarks' => 'nullable|string|max:500',
+    ]);
+
+    $assetId = $validated['asset_id'];
+    $checklistId = $validated['checklist_id'];
+    $notes = $validated['notes'] ?? null;
+    $items = $validated['items'];
+    $user_id = session('emp_data')['emp_id'] ?? null;
+    $checkedBy = $user_id;
+
+    $checklistInstance = ChecklistInstance::create([
+      'checklist_id' => $checklistId,
+      'created_by' => $checkedBy,
+      'notes' => $notes,
+    ]);
+
+    $checklistInstanceId = $checklistInstance->id;
+
+    $insertData = array_map(function ($item) use ($assetId, $checklistInstanceId, $checkedBy) {
+      return [
+        'asset_id' => $assetId,
+        'checklist_instance_id' => $checklistInstanceId,
+        'checked_by' => $checkedBy,
+        'checklist_item_id' => $item['checklist_item_id'],
+        'item_status' => $item['item_status'],
+        'remarks' => $item['remarks'] ?? null,
+      ];
+    }, array_filter($items, function ($item) {
+      return isset($item['item_status']) && trim($item['item_status']) !== '';
+    }));
+
+    ChecklistItemResult::insert($insertData);
+
+    return response()->json(['status' => 'ok']);
+  }
+
+
   public function index(Request $request)
   {
     $search = $request->input('search', '');
@@ -68,36 +116,38 @@ class CheckItemsController extends Controller
   {
     $rows = $request->all();
     $user = session('emp_data');
+    Log::info("rows: " . json_encode($rows));
 
-    $columnRules = [
-      'name' => fn($id) => [
-        'required',
-        'string',
-        Rule::unique('check_items', 'name')
-          ->ignore(is_numeric($id) ? $id : null),
-      ],
-      'description' => fn($id) => [
-        'nullable',
-      ],
-    ];
+    DB::transaction(function () use ($rows, $user) {
 
-    $bulkUpdater = new BulkUpserter(new CheckItem(), $columnRules, [], []);
+      foreach ($rows as $id => $fields) {
 
-    $result = $bulkUpdater->update($rows, $user['emp_id'] ?? null);
+        if (empty($fields)) {
+          continue;
+        }
 
-    if (!empty($result['errors'])) {
-      return response()->json([
-        'status' => 'error',
-        'message' => 'You have ' . count($result['errors']) . ' error/s',
-        'data' => $result['errors']
-      ], 422);
-    }
+        $model = CheckItem::find($id);
 
-    return response()->json([
-      'status' => 'ok',
-      'message' => 'Updated successfully',
-      'updated' => $result['updated']
-    ]);
+        if (!$model) {
+          continue;
+        }
+
+        $updateData = [];
+
+        foreach ($fields as $column => $value) {
+          $updateData[$column] = $value;
+        }
+
+        $updateData['modified_by'] = $user['emp_id'] ?? null;
+        Log::info("UPDATE DATA: " . json_encode($updateData));
+
+        if (!empty($updateData)) {
+          $model->update($updateData);
+        }
+      }
+    });
+
+    return response()->json(['status' => 'ok']);
   }
 
   public function store(Request $request)

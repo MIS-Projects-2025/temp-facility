@@ -14,6 +14,8 @@ use Exception;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\Validator;
 use App\Traits\MassDeletesByIds;
+use App\Constants\DueScheduleQuery;
+use App\Services\BulkUpserter;
 
 class AssetsController extends Controller
 {
@@ -22,32 +24,112 @@ class AssetsController extends Controller
   public function index(Request $request)
   {
     $search = $request->input('search', '');
+    $perPage = $request->input('perPage', 100);
+    $totalEntries = Asset::count();
+
+    $assets = Asset::query()
+      ->with(['location'])
+      ->when($search, function ($query, $search) {
+        // todo : add search for performed_by and verified_by using the name
+        $query->Where('code', 'like', "%{$search}%");
+      })
+      ->orderBy('code')
+      ->paginate($perPage)
+      ->withQueryString();
+
+    if ($request->wantsJson()) {
+      return response()->json([
+        'assets' => $assets,
+        'search' => $search,
+        'perPage' => $perPage,
+        'totalEntries' => $totalEntries,
+      ]);
+    }
+
+    return Inertia::render('AssetList', [
+      'assets' => $assets,
+      'search' => $search,
+      'perPage' => $perPage,
+      'totalEntries' => $totalEntries,
+    ]);
+  }
+
+  public function getDueAssets(Request $request)
+  {
+    $search = $request->input('search', '');
     $perPage = $request->input('perPage', 30);
-    $checklistId = $request->input('checklistId', null); // optional filter
+    $checklistId = $request->input('checklistId', null);
     $totalEntries = Asset::count();
 
     $assetsQuery = Asset::query()
+      ->select([
+        'assets.*',
+        DB::raw('COUNT(ci.id) AS total_items'),
+        DB::raw("
+            SUM(
+                CASE
+                    WHEN (
+                        " . DueScheduleQuery::intervalDay . "
+                        OR " . DueScheduleQuery::intervalWeek . "
+                        OR " . DueScheduleQuery::intervalMonth . "
+                        OR " . DueScheduleQuery::intervalHour . "
+                        OR " . DueScheduleQuery::dailySchedule . "
+                    )
+                    THEN 1
+                    ELSE 0
+                END
+            ) AS due_items
+        "),
+        DB::raw("
+          SUM(
+            CASE WHEN cir.checked_at IS NOT NULL THEN 1 ELSE 0 END
+          ) AS done_items
+        "),
+      ])
       ->with(['location'])
-      // $assetsQuery = Asset::query()
-      //   // optional checklist filter
-      //   ->when($checklistId, function ($query) use ($checklistId) {
-      //     $query->whereExists(function ($subQuery) use ($checklistId) {
-      //       $subQuery->select(DB::raw(1))
-      //         ->from('checklist_assets as ac')
-      //         ->whereColumn('ac.asset_id', 'assets.id')
-      //         ->where('ac.checklist_id', $checklistId);
-      //     });
-      //   })
+
+      ->join('checklist_assets as ca', 'ca.asset_id', '=', 'assets.id')
+      ->join('checklist_items as ci', 'ci.checklist_id', '=', 'ca.checklist_id')
+      ->join('entity_checklist_item_schedules as ecs', 'ecs.checklist_item_id', '=', 'ci.id')
+      ->join('schedules as s', 's.id', '=', 'ecs.schedule_id')
+
+      ->leftJoin('checklist_item_results as cir', function ($join) {
+        $join->on('cir.checklist_item_id', '=', 'ci.id')
+          ->on('cir.asset_id', '=', 'assets.id')
+          ->whereRaw('cir.checked_at = (
+                 SELECT MAX(checked_at)
+                 FROM checklist_item_results
+                 WHERE checklist_item_id = ci.id
+                   AND asset_id = assets.id
+             )');
+      })
+
+      ->when($checklistId, function ($query) use ($checklistId) {
+        $query->where('ca.checklist_id', $checklistId);
+      })
+
+      // ->when($checklistId, function ($query) use ($checklistId) {
+      //   $query->whereExists(function ($subQuery) use ($checklistId) {
+      //     $subQuery->select(DB::raw(1))
+      //       ->from('checklist_assets as ac')
+      //       ->whereColumn('ac.asset_id', 'assets.id')
+      //       ->where('ac.checklist_id', $checklistId);
+      //   });
+      // })
 
       ->when($search !== '', function ($query) use ($search) {
         $query->where(function ($q) use ($search) {
           $q->where('code', 'like', "%{$search}%");
         });
       })
-      ->orderBy('code', 'asc');
+      ->groupBy('assets.id');
+    // ->orderBy('code', 'asc');
 
-    // paginated result
-    $assets = $assetsQuery->paginate($perPage);
+    if ($perPage == -1) {
+      $assets = $assetsQuery->get();
+    } else {
+      $assets = $assetsQuery->paginate($perPage);
+    }
 
     if ($request->wantsJson()) {
       return response()->json([
@@ -139,74 +221,40 @@ class AssetsController extends Controller
     $rows = $request->all();
     $user = session('emp_data');
 
-    $updateData = [];
-    $insertData = [];
+    $columnRules = [
+      'code' => fn($id) => [
+        'sometimes',
+        'required',
+        'string',
+        Rule::unique('assets', 'code')
+          ->ignore(is_numeric($id) ? $id : null),
+      ],
+      'location_id' => fn($id) => [
+        'sometimes',
+        'required',
+        'int',
+        Rule::exists('locations', 'id'),
+      ],
+      'properties' => 'nullable|array',
+    ];
 
-    foreach ($rows as $key => $entry) {
+    $bulkUpdater = new BulkUpserter(new Asset(), $columnRules, [], []);
 
-      $row = [
-        'location_id' => $entry['location']['id'] ?? null,
-        'code' => $entry['code'] ?? null,
-        'properties' => $entry['properties'] ?? null,
-      ];
+    $result = $bulkUpdater->update($rows, $user['emp_id'] ?? null);
 
-      $id = is_numeric($key) ? $key : null;
-
-      $validator = Validator::make(
-        $row,
-        $this->assetRules($id),
-        $this->assetMessages()
-      );
-      if ($validator->fails()) {
-        return response()->json([
-          'status' => 'validation_error',
-          'row' => $key,
-          'errors' => $validator->errors(),
-          'message' => $validator->errors()->first(),
-        ], 422);
-      }
-
-      $row['properties'] = isset($row['properties']) ? json_encode($row['properties']) : null;
-
-      if ($id) {
-        $row['id'] = $id;
-        $updateData[] = $row;
-      } else {
-        $insertData[] = $row;
-      }
-    }
-    Log::info("insertdata: " . json_encode($insertData));
-    Log::info(message: "updateData: " . json_encode($updateData));
-
-
-    try {
-      DB::transaction(function () use (
-        $insertData,
-        $updateData,
-        $rows,
-        $user
-      ) {
-        Asset::upsert(
-          array_map(fn($row) => array_merge($row, [
-            'modified_by' => $user['emp_id'] ?? null,
-            'modified_at' => Carbon::now(),
-          ]), $updateData),
-          ['id'],
-          ['code', 'properties', 'location_id', 'modified_by', 'modified_at']
-        );
-
-        Asset::insert(
-          array_map(fn($row) => array_merge($row, [
-            'modified_by' => $user['emp_id'] ?? null,
-            'modified_at' => Carbon::now(),
-          ]), $insertData)
-        );
-      });
-    } catch (Exception $e) {
-      return response()->json(['status' => 'error', 'message' => $e->getMessage()], 500);
+    if (!empty($result['errors'])) {
+      return response()->json([
+        'status' => 'error',
+        'message' => 'You have ' . count($result['errors']) . ' error/s',
+        'data' => $result['errors']
+      ], 422);
     }
 
-    return response()->json(['status' => 'ok']);
+    return response()->json([
+      'status' => 'ok',
+      'message' => 'Updated successfully',
+      'updated' => $result['updated']
+    ]);
   }
 
   public function store(Request $request)

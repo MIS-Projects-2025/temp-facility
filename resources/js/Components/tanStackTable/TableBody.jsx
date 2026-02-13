@@ -62,7 +62,10 @@ function TableBodyRow({
 }) {
     return (
         <tr
-            className="hover:outline outline-secondary/50"
+            className={clsx("hover:outline outline-secondary/50", {
+				"ring ring-yellow-200/75 bg-yellow-100/10": row.original?.isNew,
+				"bg-base-300": !row.original?.isNew && rowIndex % 2 === 0,
+			})}
             data-index={virtualRow.index}
             ref={(node) => rowVirtualizer.measureElement(node)}
             key={row.id}
@@ -77,10 +80,8 @@ function TableBodyRow({
                 return (
                     <td
                         className={clsx({
-                            "animate-hehe bg-base-300 w-full text-[0px]":
-                                isLoading,
-                            "bg-base-300": rowIndex % 2 === 0,
-                        })}
+							"animate-hehe bg-base-300 w-full text-[0px]": isLoading,
+						})}
                         key={cell.id}
                         style={{
                             display: "flex",

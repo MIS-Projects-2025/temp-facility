@@ -30,6 +30,7 @@ export const useChecklistStore = create((set, get) => {
           method: "GET",
           headers: {
             "Content-Type": "application/json",
+            "Accept": "application/json", // ✅ THIS
             ...(token ? { Authorization: `Bearer ${token}` } : {}),
           },
           signal: abortController.signal,

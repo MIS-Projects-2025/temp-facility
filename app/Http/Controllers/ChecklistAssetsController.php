@@ -15,10 +15,14 @@ use Illuminate\Http\Middleware\ValidatePathEncoding;
 use Illuminate\Support\Facades\Validator;
 use App\Models\Checklist;
 use App\Traits\MassDeletesByIds;
+use App\Services\BulkUpserter;
+use App\Traits\HasUniqueCombinationRule;
+use App\Models\Asset;
 
 class ChecklistAssetsController extends Controller
 {
   use MassDeletesByIds;
+  use HasUniqueCombinationRule;
 
   public function index(Request $request)
   {
@@ -132,70 +136,37 @@ class ChecklistAssetsController extends Controller
     $rows = $request->all();
     $user = session('emp_data');
 
-    $updateData = [];
-    $insertData = [];
+    $columnRules = [
+      'asset_id' => fn($id, $fields) => [
+        'required',
+        'integer',
+        'exists:assets,id',
+        $this->uniqueCombinationRule('checklist_assets', ['checklist_id'], Checklist::class)($id, $fields),
+      ],
+      'checklist_id' => fn($id, $fields) => [
+        'required',
+        'integer',
+        $this->uniqueCombinationRule('checklist_assets', ['asset_id'], Asset::class)($id, $fields),
+      ],
+    ];
 
-    foreach ($rows as $key => $entry) {
+    $bulkUpdater = new BulkUpserter(new ChecklistAssets(), $columnRules, [], []);
 
-      $row = [
-        'asset_id' => $entry['asset']['id'] ?? null,
-        'checklist_id' => $entry['checklist_id'] ?? null,
-      ];
+    $result = $bulkUpdater->update($rows, $user['emp_id'] ?? null);
 
-      $id = is_numeric($key) ? $key : null;
-
-      $validator = Validator::make(
-        $row,
-        $this->assetRules($id, $row['asset_id'] ?? null),
-        $this->params()
-      );
-
-      if ($validator->fails()) {
-        return response()->json([
-          'status' => 'validation_error',
-          'row' => $key,
-          'errors' => $validator->errors(),
-          'message' => $validator->errors()->first(),
-        ], 422);
-      }
-
-      if ($id) {
-        $row['id'] = $id;
-        $updateData[] = $row;
-      } else {
-        $insertData[] = $row;
-      }
-    }
-    // Log::info("insertdata: ", $insertData);
-
-    try {
-      DB::transaction(function () use (
-        $insertData,
-        $updateData,
-        $rows,
-        $user
-      ) {
-        ChecklistAssets::upsert(
-          array_map(fn($row) => array_merge($row, [
-            'modified_by' => $user['emp_id'] ?? null,
-            'modified_at' => Carbon::now(),
-          ]), $updateData),
-          ['id'],
-          ['asset_id', 'checklist_id', 'modified_by', 'modified_at']
-        );
-
-        ChecklistAssets::insert(
-          array_map(fn($row) => array_merge($row, [
-            'modified_by' => $user['emp_id'] ?? null,
-            'modified_at' => Carbon::now(),
-          ]), $insertData)
-        );
-      });
-    } catch (Exception $e) {
-      return response()->json(['status' => 'error', 'message' => $e->getMessage()], 500);
+    if (!empty($result['errors'])) {
+      return response()->json([
+        'status' => 'error',
+        'message' => 'You have ' . count($result['errors']) . ' error/s',
+        'data' => $result['errors']
+      ], 422);
     }
 
-    return response()->json(['status' => 'ok']);
+    return response()->json([
+      'status' => 'ok',
+      'message' => 'Updated successfully',
+      'updated' => $result['updated']
+    ]);
   }
 
   public function store(Request $request)

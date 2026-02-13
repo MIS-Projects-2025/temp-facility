@@ -18,7 +18,7 @@ const CheckBoxColumn = {
         if (!row) return null;
 
         return (
-            <div className="px-1">
+            <div className="items-center flex px-1">
                 <IndeterminateCheckbox
                     checked={row.getIsSelected()}
                     disabled={!row.getCanSelect()}

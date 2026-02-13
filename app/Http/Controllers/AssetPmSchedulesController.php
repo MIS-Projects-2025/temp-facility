@@ -108,71 +108,109 @@ class AssetPmSchedulesController extends Controller
     $rows = $request->all();
     $user = session('emp_data');
 
-    $updateData = [];
-    $insertData = [];
+    $columnRules = [
+      'asset_id' => fn($id) => [
+        'required',
+        'int',
+        Rule::unique('assets', 'code')
+          ->ignore(is_numeric($id) ? $id : null),
+      ],
+      'schedule_id' => fn($id) => [
+        'required',
+        'int',
+        Rule::exists('schedules', 'id'),
+      ],
+    ];
 
-    foreach ($rows as $key => $entry) {
+    $bulkUpdater = new BulkUpserter(new AssetPmSchedule(), $columnRules, [], []);
 
-      $row = [
-        'asset_id' => $entry['assets']['id'] ?? null,
-        'schedule_id' => $entry['schedule']['id'] ?? null,
-      ];
+    $result = $bulkUpdater->update($rows, $user['emp_id'] ?? null);
 
-      $id = is_numeric($key) ? $key : null;
-
-      $validator = Validator::make(
-        $row,
-        $this->assetRules($id, $row['asset_id'] ?? null),
-        $this->params()
-      );
-
-      if ($validator->fails()) {
-        return response()->json([
-          'status' => 'validation_error',
-          'row' => $key,
-          'errors' => $validator->errors(),
-          'message' => $validator->errors()->first(),
-        ], 422);
-      }
-
-      if ($id) {
-        $row['id'] = $id;
-        $updateData[] = $row;
-      } else {
-        $insertData[] = $row;
-      }
-    }
-    // Log::info("insertdata: ", $insertData);
-
-    try {
-      DB::transaction(function () use (
-        $insertData,
-        $updateData,
-        $rows,
-        $user
-      ) {
-        AssetPmSchedule::upsert(
-          array_map(fn($row) => array_merge($row, [
-            'modified_by' => $user['emp_id'] ?? null,
-            'modified_at' => Carbon::now(),
-          ]), $updateData),
-          ['id'],
-          ['asset_id', 'schedule_id', 'modified_by', 'modified_at']
-        );
-
-        AssetPmSchedule::insert(
-          array_map(fn($row) => array_merge($row, [
-            'modified_by' => $user['emp_id'] ?? null,
-            'modified_at' => Carbon::now(),
-          ]), $insertData)
-        );
-      });
-    } catch (Exception $e) {
-      return response()->json(['status' => 'error', 'message' => $e->getMessage()], 500);
+    if (!empty($result['errors'])) {
+      return response()->json([
+        'status' => 'error',
+        'message' => 'You have ' . count($result['errors']) . ' error/s',
+        'data' => $result['errors']
+      ], 422);
     }
 
-    return response()->json(['status' => 'ok']);
+    return response()->json([
+      'status' => 'ok',
+      'message' => 'Updated successfully',
+      'updated' => $result['updated']
+    ]);
   }
+
+  // public function bulkUpdate(Request $request)
+  // {
+  //   $rows = $request->all();
+  //   $user = session('emp_data');
+
+  //   $updateData = [];
+  //   $insertData = [];
+
+  //   foreach ($rows as $key => $entry) {
+
+  //     $row = [
+  //       'asset_id' => $entry['assets']['id'] ?? null,
+  //       'schedule_id' => $entry['schedule']['id'] ?? null,
+  //     ];
+
+  //     $id = is_numeric($key) ? $key : null;
+
+  //     $validator = Validator::make(
+  //       $row,
+  //       $this->assetRules($id, $row['asset_id'] ?? null),
+  //       $this->params()
+  //     );
+
+  //     if ($validator->fails()) {
+  //       return response()->json([
+  //         'status' => 'validation_error',
+  //         'row' => $key,
+  //         'errors' => $validator->errors(),
+  //         'message' => $validator->errors()->first(),
+  //       ], 422);
+  //     }
+
+  //     if ($id) {
+  //       $row['id'] = $id;
+  //       $updateData[] = $row;
+  //     } else {
+  //       $insertData[] = $row;
+  //     }
+  //   }
+  //   // Log::info("insertdata: ", $insertData);
+
+  //   try {
+  //     DB::transaction(function () use (
+  //       $insertData,
+  //       $updateData,
+  //       $rows,
+  //       $user
+  //     ) {
+  //       AssetPmSchedule::upsert(
+  //         array_map(fn($row) => array_merge($row, [
+  //           'modified_by' => $user['emp_id'] ?? null,
+  //           'modified_at' => Carbon::now(),
+  //         ]), $updateData),
+  //         ['id'],
+  //         ['asset_id', 'schedule_id', 'modified_by', 'modified_at']
+  //       );
+
+  //       AssetPmSchedule::insert(
+  //         array_map(fn($row) => array_merge($row, [
+  //           'modified_by' => $user['emp_id'] ?? null,
+  //           'modified_at' => Carbon::now(),
+  //         ]), $insertData)
+  //       );
+  //     });
+  //   } catch (Exception $e) {
+  //     return response()->json(['status' => 'error', 'message' => $e->getMessage()], 500);
+  //   }
+
+  //   return response()->json(['status' => 'ok']);
+  // }
 
   public function store(Request $request)
   {

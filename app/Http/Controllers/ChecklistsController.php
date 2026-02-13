@@ -17,7 +17,8 @@ class ChecklistsController extends Controller
   {
     $checklists = Checklist::query()
       ->with('checklistItems.item')
-      ->get();
+      ->get()
+      ->keyBy('id');
 
     if ($request->wantsJson()) {
       return response()->json([
@@ -118,8 +119,14 @@ class ChecklistsController extends Controller
   {
 
     return Cache::remember(CacheKeys::checklistsAll(), CacheKeys::defaultCacheDuration(), function () {
-      // return Checklist::all();
-      return Checklist::select('id', 'name')->get();
+      $checklists = Checklist::select('id', 'name')
+        ->get()
+        ->keyBy(fn($item) => (string)$item->id); // keyed by ID as strings
+
+      return response()->json([
+        'checklistArray' => $checklists->values(), // numeric array for iteration
+        'checklistMap'   => $checklists,          // keyed object for fast lookup
+      ]);
     });
   }
 }

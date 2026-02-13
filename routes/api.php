@@ -13,6 +13,8 @@ use App\Http\Controllers\ChecklistAssetsController;
 use App\Http\Controllers\AssetPmSchedulesController;
 use App\Http\Controllers\ChecklistItemSchedulesController;
 use App\Http\Controllers\SchedulesController;
+use App\Http\Controllers\CheckItemsResultController;
+use App\Http\Controllers\ChecklistInstanceController;
 use App\Http\Controllers\GlobalPmSchedulesController;
 use App\Http\Controllers\GlobalPmController;
 use App\Http\Controllers\ChecklistsController;
@@ -82,6 +84,8 @@ Route::middleware([ApiAuthMiddleware::class])
         ->name('bulkUpdate');
       Route::delete('/bulk-delete', [ChecklistItemsController::class, 'massGenocide'])
         ->name('massGenocide');
+      Route::get('/scheduled-check-items', [ChecklistItemsController::class, 'getScheduledCheckItems'])
+        ->name('scheduled-check-items');
     });
 
     Route::prefix('check-items')->name('check-items.')->group(function () {
@@ -114,9 +118,16 @@ Route::middleware([ApiAuthMiddleware::class])
         ->name('massGenocide');
     });
 
+    Route::prefix('checklist-item-result')->name('checklist-item-result.')->group(function () {
+      Route::post('/record', [CheckItemsResultController::class, 'recordResult'])
+        ->name('recordResult');
+    });
+
     Route::prefix('checklist-assets')->name('checklist-assets.')->group(function () {
       Route::get('/', [ChecklistAssetsController::class, 'index'])
         ->name('index');
+      Route::get('/due', [AssetsController::class, 'getDueAssets'])
+        ->name('due-assets');
       Route::post('/add', [ChecklistAssetsController::class, 'store'])
         ->name('add');
       Route::delete('/{id}/delete', [ChecklistAssetsController::class, 'destroy'])
@@ -129,6 +140,11 @@ Route::middleware([ApiAuthMiddleware::class])
         ->name('bulkUpdate');
       Route::delete('/bulk-delete', [ChecklistAssetsController::class, 'massGenocide'])
         ->name('massGenocide');
+    });
+
+    Route::prefix('checklist-instance')->name('checklist-instance.')->group(function () {
+      Route::patch('/verify', [ChecklistInstanceController::class, 'verify'])
+        ->name('verify');
     });
 
     Route::prefix('schedules')->name('schedules.')->group(function () {

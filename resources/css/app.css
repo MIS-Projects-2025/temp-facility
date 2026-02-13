@@ -114,3 +114,22 @@ html {
   margin: 0;
   background-color: var(--color-accent);
 }
+
+@keyframes pop {
+  0% { transform: scale(1.5); }
+  50% { transform: scale(1.5); }
+  70% { transform: scale(1.2); }
+  100% { transform: scale(1); }
+}
+
+@keyframes rainbow {
+  0% { color: red; }
+  34% { color: orange; }
+  78% { color: yellow; }
+  100% { color: red; }
+}
+
+.animate-pop-rainbow {
+  display: inline-block;
+  animation: pop 0.6s ease forwards, rainbow 1s linear infinite;
+}

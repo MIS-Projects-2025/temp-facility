@@ -11,9 +11,12 @@ use App\Http\Controllers\UtilityTrashController;
 use App\Http\Controllers\LocationController;
 use App\Http\Controllers\General\ProfileController;
 use App\Http\Controllers\ChecklistsController;
+use App\Http\Controllers\CheckItemsController;
 use App\Http\Controllers\SchedulesController;
 use App\Http\Controllers\AssetsController;
 use App\Http\Controllers\ChecklistAssetsController;
+use App\Http\Controllers\PerformChecklistController;
+use App\Http\Controllers\ChecklistInstanceController;
 use App\Http\Controllers\AssetPmSchedulesController;
 use App\Http\Controllers\HazardousWasteTurnOverLogSheetController;
 use Inertia\Inertia;
@@ -110,6 +113,20 @@ Route::prefix('checklist-items')->name('checklist-items.')->group(
     }
 );
 
+Route::prefix('check-items')->name('check-items.')->group(
+    function () {
+        Route::middleware([])->group(function () {
+            Route::get("/", [CheckItemsController::class, 'index'])->name('index');
+        });
+        Route::middleware([])->group(function () {
+            Route::get("/create", [CheckItemsController::class, 'upsert'])->name('create');
+        });
+        Route::middleware([])->group(function () {
+            Route::get("/{id}/edit", [CheckItemsController::class, 'upsert'])->name('edit');
+        });
+    }
+);
+
 Route::prefix('schedules')->name('schedules.')->group(
     function () {
         Route::middleware([])->group(function () {
@@ -141,6 +158,9 @@ Route::prefix('assets')->name('assets.')->group(
 Route::prefix('checklist-assets')->name('checklist-assets.')->group(
     function () {
         Route::middleware([])->group(function () {
+            Route::get("/due", [AssetsController::class, 'getDueAssets'])->name('due-assets');
+        });
+        Route::middleware([])->group(function () {
             Route::get("/", [ChecklistAssetsController::class, 'index'])->name('index');
         });
         Route::middleware([])->group(function () {
@@ -149,6 +169,34 @@ Route::prefix('checklist-assets')->name('checklist-assets.')->group(
         Route::middleware([])->group(function () {
             Route::get("/{id}/edit", [ChecklistAssetsController::class, 'upsert'])->name('edit');
         });
+    }
+);
+
+Route::prefix('perform-checklist')->name('perform-checklist.')->group(
+    function () {
+        Route::middleware([])->group(function () {
+            Route::get("/", [PerformChecklistController::class, 'index'])->name('index');
+        });
+        Route::middleware([])->group(function () {
+            Route::get("/create", [PerformChecklistController::class, 'upsert'])->name('create');
+        });
+        Route::middleware([])->group(function () {
+            Route::get("/{id}/edit", [PerformChecklistController::class, 'upsert'])->name('edit');
+        });
+    }
+);
+
+Route::prefix('checklist-instance')->name('checklist-instance.')->group(
+    function () {
+        Route::middleware([])->group(function () {
+            Route::get("/", [ChecklistInstanceController::class, 'index'])->name('index');
+        });
+        // Route::middleware([])->group(function () {
+        //     Route::get("/create", [PerformChecklistController::class, 'upsert'])->name('create');
+        // });
+        // Route::middleware([])->group(function () {
+        //     Route::get("/{id}/edit", [PerformChecklistController::class, 'upsert'])->name('edit');
+        // });
     }
 );
 

@@ -12,6 +12,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Database\QueryException;
 use App\Traits\MassDeletesByIds;
+use App\Constants\DueScheduleQuery;
 
 class ChecklistItemsController extends Controller
 {
@@ -75,11 +76,193 @@ class ChecklistItemsController extends Controller
 
   public function massGenocide(Request $request)
   {
+    Log::info("Fjlaksjdfklsdajflsdjlsjfljdflsdjfldjfldj");
+
     return $this->massDeleteByIds(
       $request,
       ChecklistItem::class
     );
   }
+
+  public function getScheduledCheckItems(Request $request)
+  {
+    $assetId = $request->input('assetId');
+    $checklistId = $request->input('checklistId');
+
+    $query = DB::table('checklist_items as ci')
+      ->select([
+        'ci.id',
+        'i.name',
+        'ci.item_id',
+        'cir.verified_by',
+        'ci.criteria',
+        's.schedule_name',
+        'cir.checked_at',
+        DB::raw("
+                CASE
+                    -- Daily interval
+                    WHEN " . DueScheduleQuery::intervalDay . "
+                        THEN 1
+                    -- Weekly interval
+                    WHEN " . DueScheduleQuery::intervalWeek . "
+                        THEN 1
+                    -- Monthly interval
+                    WHEN " . DueScheduleQuery::intervalMonth . "
+                        THEN 1
+                    -- Hourly interval
+                    WHEN " . DueScheduleQuery::intervalHour . "
+                        THEN 1
+                    -- Daily with specific day_times
+                    WHEN " . DueScheduleQuery::dailySchedule . "
+                        THEN 1
+                    ELSE 0
+                END as is_due
+            ")
+      ])
+      ->join('check_items as i', 'ci.item_id', '=', 'i.id')
+      ->join('checklist_assets as ca', function ($join) use ($assetId) {
+        $join->on('ca.checklist_id', '=', 'ci.checklist_id')
+          ->where('ca.asset_id', $assetId);
+      })
+      ->join('entity_checklist_item_schedules as ecs', 'ecs.checklist_item_id', '=', 'ci.id')
+      ->join('schedules as s', 's.id', '=', 'ecs.schedule_id')
+      ->leftJoin('checklist_item_results as cir', function ($join) use ($assetId) {
+        $join->on('cir.checklist_item_id', '=', 'ci.id')
+          ->where('cir.asset_id', $assetId)
+          ->whereRaw('cir.checked_at = (
+                     SELECT MAX(checked_at)
+                     FROM checklist_item_results
+                     WHERE checklist_item_id = ci.id
+                 )');
+      })
+      ->where('ci.checklist_id', $checklistId)
+      ->orderByDesc('is_due'); // due items appear first
+
+    $results = $query->get();
+
+    return response()->json($results);
+  }
+
+
+  // public function getScheduledCheckItems(Request $request)
+  // {
+  //   $assetId = $request->input('assetId');
+  //   $checklistId = $request->input('checklistId');
+
+  //   $query = DB::table('checklist_items as ci')
+  //     ->select([
+  //       'ci.id',
+  //       'i.name',
+  //       'ci.checklist_id',
+  //       'ci.item_id',
+  //       'ci.criteria',
+  //       's.schedule_name',
+  //       'cir.checked_at',
+  //     ])
+
+  //     // check items
+  //     ->join('check_items as i', 'ci.item_id', '=', 'i.id')
+
+  //     // checklist_assets
+  //     ->join('checklist_assets as ca', function ($join) use ($assetId) {
+  //       $join->on('ca.checklist_id', '=', 'ci.checklist_id')
+  //         ->where('ca.asset_id', $assetId);
+  //     })
+
+  //     // entity_checklist_item_schedules
+  //     ->join('entity_checklist_item_schedules as ecs', 'ecs.checklist_item_id', '=', 'ci.id')
+
+  //     // schedules
+  //     ->join('schedules as s', 's.id', '=', 'ecs.schedule_id')
+
+  //     // latest checklist_item_results per item
+  //     ->leftJoin('checklist_item_results as cir', function ($join) use ($assetId) {
+  //       $join->on('cir.checklist_item_id', '=', 'ci.id')
+  //         ->where('cir.asset_id', $assetId)
+  //         ->whereRaw('cir.checked_at = (
+  //                SELECT MAX(checked_at)
+  //                FROM checklist_item_results
+  //                WHERE checklist_item_id = ci.id
+  //            )');
+  //     })
+
+  //     ->where('ci.checklist_id', $checklistId)
+
+  //     ->where(function ($q) {
+
+  //       // Due daily
+  //       $q->where(function ($q) {
+  //         $q->where('s.recurrence_type', 'interval')
+  //           ->where('s.interval_unit', 'day')
+  //           ->whereRaw('
+  //                 cir.checked_at IS NULL
+  //                 OR DATEDIFF(CURDATE(), DATE(cir.checked_at)) >= s.interval_value
+  //             ');
+  //       })
+
+  //         // Due weekly
+  //         ->orWhere(function ($q) {
+  //           $q->where('s.recurrence_type', 'interval')
+  //             ->where('s.interval_unit', 'week')
+  //             ->whereRaw('
+  //                 cir.checked_at IS NULL
+  //                 OR FLOOR(DATEDIFF(CURDATE(), DATE(cir.checked_at)) / 7) >= s.interval_value
+  //             ');
+  //         })
+
+  //         // Due monthly
+  //         ->orWhere(function ($q) {
+  //           $q->where('s.recurrence_type', 'interval')
+  //             ->where('s.interval_unit', 'month')
+  //             ->whereRaw('
+  //                 cir.checked_at IS NULL
+  //                 OR PERIOD_DIFF(
+  //                     EXTRACT(YEAR_MONTH FROM CURDATE()),
+  //                     EXTRACT(YEAR_MONTH FROM DATE(cir.checked_at))
+  //                 ) >= s.interval_value
+  //             ');
+  //         })
+
+  //         // Due hourly
+  //         ->orWhere(function ($q) {
+  //           $q->where('s.recurrence_type', 'interval')
+  //             ->where('s.interval_unit', 'hour')
+  //             ->whereRaw('
+  //                 cir.checked_at IS NULL
+  //                 OR TIMESTAMPDIFF(HOUR, cir.checked_at, NOW()) >= s.interval_value
+  //             ');
+  //         })
+
+  //         // Daily with day_times JSON
+  //         ->orWhere(function ($q) {
+  //           $q->where('s.recurrence_type', 'daily')
+  //             ->where('s.interval_unit', 'day')
+  //             ->whereNotNull('s.day_times')
+  //             ->whereExists(function ($sub) {
+  //               $sub->select(DB::raw(1))
+  //                 ->from(DB::raw("
+  //                         JSON_TABLE(
+  //                             s.day_times,
+  //                             '$[*]' COLUMNS (
+  //                                 t TIME PATH '$'
+  //                             )
+  //                         ) as jt
+  //                     "))
+  //                 ->whereRaw('
+  //                         TIMESTAMP(CURDATE(), jt.t) <= NOW()
+  //                         AND (
+  //                             cir.checked_at IS NULL
+  //                             OR cir.checked_at < TIMESTAMP(CURDATE(), jt.t)
+  //                         )
+  //                     ');
+  //             });
+  //         });
+  //     });
+
+  //   $results = $query->get();
+
+  //   return response()->json($results);
+  // }
 
   public function bulkUpdate(Request $request)
   {

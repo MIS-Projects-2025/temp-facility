@@ -13,6 +13,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use App\Support\CacheKeys;
 use App\Traits\MassDeletesByIds;
+use App\Services\BulkUpserter;
 
 class LocationController extends Controller
 {
@@ -126,36 +127,32 @@ class LocationController extends Controller
     $rows = $request->all();
     $user = session('emp_data');
 
-    DB::transaction(function () use ($rows, $user) {
+    $columnRules = [
+      'location_name' => fn($id) => [
+        'required',
+        'string',
+        Rule::unique('locations', 'location_name')
+          ->ignore(is_numeric($id) ? $id : null),
+      ],
+    ];
 
-      foreach ($rows as $id => $fields) {
+    $bulkUpdater = new BulkUpserter(new Location(), $columnRules, [], []);
 
-        if (empty($fields)) {
-          continue;
-        }
+    $result = $bulkUpdater->update($rows, $user['emp_id'] ?? null);
 
-        $model = Location::find($id);
+    if (!empty($result['errors'])) {
+      return response()->json([
+        'status' => 'error',
+        'message' => 'You have ' . count($result['errors']) . ' error/s',
+        'data' => $result['errors']
+      ], 422);
+    }
 
-        if (!$model) {
-          continue;
-        }
-
-        $updateData = [];
-
-        foreach ($fields as $column => $value) {
-          $updateData[$column] = $value;
-        }
-
-        $updateData['modified_by'] = $user['emp_id'] ?? null;
-
-        if (!empty($updateData)) {
-          $model->update($updateData);
-        }
-      }
-    });
-
-    Cache::forget(CacheKeys::locationsAll());
-    return response()->json(['status' => 'ok']);
+    return response()->json([
+      'status' => 'ok',
+      'message' => 'Updated successfully',
+      'updated' => $result['updated']
+    ]);
   }
 
   public function destroy($id)

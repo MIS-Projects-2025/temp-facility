@@ -9,8 +9,7 @@ export const DATE_ONLY_FORMAT = {
 export const TIME_ONLY_FORMAT = {
     hour: '2-digit',
     minute: '2-digit',
-    second: '2-digit',
-    hour12: false,
+    hour12: true,
 };
 
 export const DATE_TIME_FORMAT = {
@@ -19,8 +18,7 @@ export const DATE_TIME_FORMAT = {
     day: 'numeric',
     hour: '2-digit',
     minute: '2-digit',
-    second: '2-digit',
-    hour12: false,
+    hour12: true,
 };
 
 export function formatTimestamp(
@@ -32,14 +30,15 @@ export function formatTimestamp(
 
     let date;
 
-    if (typeof timestamp === 'string') {
-        const normalized = timestamp.replace(' ', 'T');
-        date = timezone === 'utc'
-            ? new Date(normalized + 'Z')
-            : new Date(normalized);
-    } else {
+    // https://chatgpt.com/c/6981943e-2a48-8323-b57b-698e5a10da1e
+    // if (typeof timestamp === 'string') {
+    //     const normalized = timestamp.replace(' ', 'T');
+    //     date = timezone === 'utc'
+    //         ? new Date(normalized + 'Z')
+    //         : new Date(normalized);
+    // } else {
         date = new Date(timestamp);
-    }
+    // }
 
     if (Number.isNaN(date.getTime())) {
         return '-';
