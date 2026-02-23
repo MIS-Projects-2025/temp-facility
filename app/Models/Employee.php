@@ -11,15 +11,15 @@ class Employee extends Model
   protected $primaryKey = 'EMPLOYID';
   public $timestamps = false;
 
-  protected $fillable = [
-    'EMPLOYID',
-    'EMPNAME',
-    'JOB_TITLE',
-    'DEPARTMENT',
-    'PRODLINE',
-    'STATION',
-    'DATEHIRED',
-    'EMAIL',
-    'PASSWRD'
-  ];
+  // protected $fillable = [
+  //   'EMPLOYID',
+  //   'EMPNAME',
+  //   'JOB_TITLE',
+  //   'DEPARTMENT',
+  //   'PRODLINE',
+  //   'STATION',
+  //   'DATEHIRED',
+  //   'EMAIL',
+  //   'PASSWRD'
+  // ];
 }

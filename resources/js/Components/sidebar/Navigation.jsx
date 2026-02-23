@@ -2,28 +2,12 @@ import Dropdown from "@/Components/sidebar/Dropdown";
 import SidebarLink from "@/Components/sidebar/SidebarLink";
 import { usePage } from "@inertiajs/react";
 import { BiTask } from "react-icons/bi";
-import { FaGasPump, FaListAlt, FaTools, FaTrash } from "react-icons/fa";
-import {
-	FaBiohazard,
-	FaCubes,
-	FaFireExtinguisher,
-	FaLocationDot,
-	FaPlay,
-} from "react-icons/fa6";
-import { GiChemicalDrop, GiWaterTank } from "react-icons/gi";
-import { IoSettingsOutline, IoWaterSharp } from "react-icons/io5";
+import { FaCheckCircle, FaListAlt, FaTools, FaTrash } from "react-icons/fa";
+import { FaBiohazard, FaCubes, FaLocationDot, FaPlay } from "react-icons/fa6";
+import { GiChemicalDrop } from "react-icons/gi";
+import { IoSettingsOutline } from "react-icons/io5";
 import { LuLayoutDashboard } from "react-icons/lu";
-import {
-	MdAir,
-	MdChecklist,
-	MdFireHydrantAlt,
-	MdHealthAndSafety,
-	MdPropaneTank,
-	MdScubaDiving,
-} from "react-icons/md";
-import { RiCalendarScheduleLine } from "react-icons/ri";
-import { TbAirConditioning } from "react-icons/tb";
-import { WiHumidity } from "react-icons/wi";
+import { MdChecklist, MdHealthAndSafety } from "react-icons/md";
 
 export default function NavLinks({ isCollapse }) {
 	const { emp_data } = usePage().props;
@@ -33,7 +17,7 @@ export default function NavLinks({ isCollapse }) {
 			style={{ scrollbarWidth: "none" }}
 		>
 			<SidebarLink
-				href={route("perform-checklist.index")}
+				href={route("perform.checklist.index")}
 				label="Perform a checklist"
 				icon={<FaPlay className="w-full h-full" />}
 				isIconOnly={isCollapse}
@@ -79,6 +63,16 @@ export default function NavLinks({ isCollapse }) {
                 isIconOnly={isCollapse}
                 // notification={true}
             /> */}
+
+			{/* <SidebarLink
+				href={route("utility-trash")}
+				label="View Done Checklist"
+				// icon={<LuLayoutDashboard className="w-full h-full" />}
+
+				icon={<FaTrash className="w-full h-full" />}
+				notifications={5}
+				isIconOnly={isCollapse}
+			/> */}
 
 			<SidebarLink
 				href={route("utility-trash")}
@@ -176,8 +170,13 @@ export default function NavLinks({ isCollapse }) {
 						icon: <FaLocationDot className="w-full h-full" />,
 					},
 					{
-						href: route("checklist-items.index"),
+						href: route("checklist.index"),
 						label: "Checklists",
+						icon: <FaCheckCircle className="w-full h-full" />,
+					},
+					{
+						href: route("checklist-items.index"),
+						label: "Checklists' Items",
 						icon: <MdChecklist className="w-full h-full" />,
 					},
 					{
@@ -213,13 +212,18 @@ export default function NavLinks({ isCollapse }) {
 				icon={<FaBiohazard className="w-full h-full" />}
 				links={[
 					{
+						href: route("perform.sds-monitoring.index"),
+						label: "Perform SDS Monitoring",
+						icon: <FaPlay className="w-full h-full" />,
+					},
+					{
 						href: route("chemicals.index"),
 						label: "Chemical Inventory",
 						icon: <GiChemicalDrop className="w-full h-full" />,
 					},
 					{
-						href: route("chemicals-sds.index"),
-						label: "Chemical SDS Monitoring",
+						href: route("chemicals-sds-instances.index"),
+						label: "Performed Chemical SDS Monitoring List",
 						icon: <MdHealthAndSafety className="w-full h-full" />,
 					},
 				]}

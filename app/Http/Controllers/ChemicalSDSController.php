@@ -13,34 +13,34 @@ use Illuminate\Validation\Rule;
 
 class ChemicalSDSController extends Controller
 {
-  public function index(Request $request)
-  {
-    $search = $request->input('search', '');
-    $perPage = $request->input('perPage', 10);
-    $status = $request->input('status', null);
-    $totalEntries = ChemicalSDS::count();
+  // public function index(Request $request)
+  // {
+  //   $search = $request->input('search', '');
+  //   $perPage = $request->input('perPage', 10);
+  //   $status = $request->input('status', null);
+  //   $totalEntries = ChemicalSDS::count();
 
-    $chemicalSDS = ChemicalSDS::query()
-      ->with('chemical')
-      ->when($search, function ($query, $search) {
-        $query->orWhereHas('chemical', function ($rel) use ($search) {
-          $rel->where('name', 'like', "%{$search}%");
-        });
-      })
-      ->when($status, function ($query, $status) {
-        $query->where('status', $status);
-      })
-      ->orderBy('check_date')
-      ->paginate($perPage)
-      ->withQueryString();
+  //   $chemicalSDS = ChemicalSDS::query()
+  //     ->with('chemical')
+  //     ->when($search, function ($query, $search) {
+  //       $query->orWhereHas('chemical', function ($rel) use ($search) {
+  //         $rel->where('name', 'like', "%{$search}%");
+  //       });
+  //     })
+  //     ->when($status, function ($query, $status) {
+  //       $query->where('status', $status);
+  //     })
+  //     ->orderBy('check_date')
+  //     ->paginate($perPage)
+  //     ->withQueryString();
 
-    return Inertia::render('ChemicalSDSList', [
-      'chemicalSDS' => $chemicalSDS,
-      'search' => $search,
-      'perPage' => $perPage,
-      'totalEntries' => $totalEntries,
-    ]);
-  }
+  //   return Inertia::render('ChemicalSDSList', [
+  //     'chemicalSDS' => $chemicalSDS,
+  //     'search' => $search,
+  //     'perPage' => $perPage,
+  //     'totalEntries' => $totalEntries,
+  //   ]);
+  // }
 
   private function validateEntry(Request $request, $id = null)
   {

@@ -1,3 +1,4 @@
+import MaxItemDropdown from "@/Components/MaxItemDropdown";
 import Modal from "@/Components/Modal";
 import Pagination from "@/Components/Pagination";
 import { useMutation } from "@/Hooks/useMutation";
@@ -83,7 +84,7 @@ const ChemicalList = () => {
 			data: {
 				search: searchInput,
 				perPage: maxItem,
-				currentPage,
+				page: 1,
 			},
 			preserveState: true,
 			preserveScroll: true,
@@ -126,31 +127,10 @@ const ChemicalList = () => {
 
 				<div className="flex items-center justify-between py-4">
 					<div>
-						<div className="dropdown dropdown-bottom">
-							<div tabIndex={0} className="m-1 btn">
-								{`Show ${maxItem} items`}
-							</div>
-							<ul
-								tabIndex={0}
-								className="p-2 shadow-lg dropdown-content menu bg-base-100 rounded-lg z-1 w-52"
-							>
-								{[10, 25, 50, 100].map((item) => (
-									<li key={item}>
-										<a
-											onClick={() => {
-												changeMaxItemPerPage(item);
-											}}
-											className="flex items-center justify-between"
-										>
-											{item}
-											{maxItem === item && (
-												<span className="font-bold text-green-500">✔</span>
-											)}
-										</a>
-									</li>
-								))}
-							</ul>
-						</div>
+						<MaxItemDropdown
+							maxItem={maxItem}
+							changeMaxItemPerPage={changeMaxItemPerPage}
+						/>
 					</div>
 
 					<SearchInput
@@ -184,7 +164,7 @@ const ChemicalList = () => {
 									>
 										<FaEdit />
 									</Link>
-									<a
+									{/* <a
 										href="#"
 										className="btn btn-ghost btn-sm text-error"
 										onClick={() => {
@@ -193,7 +173,7 @@ const ChemicalList = () => {
 										}}
 									>
 										<FaTrash />
-									</a>
+									</a> */}
 								</td>
 							</tr>
 						))}

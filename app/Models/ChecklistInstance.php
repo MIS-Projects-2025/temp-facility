@@ -31,4 +31,14 @@ class ChecklistInstance extends Model
   {
     return $this->belongsTo(Checklist::class, 'checklist_id');
   }
+
+  public function verifier()
+  {
+    return $this->belongsTo(Employee::class, 'verified_by', 'EMPLOYID');
+  }
+
+  public function creator()
+  {
+    return $this->belongsTo(Employee::class, 'created_by', 'EMPLOYID');
+  }
 }

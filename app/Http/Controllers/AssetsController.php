@@ -9,7 +9,7 @@ use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use App\Models\Asset;
-use App\Models\ChecklistAssets;
+use App\Services\AssetsService;
 use Exception;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\Validator;
@@ -20,6 +20,11 @@ use App\Services\BulkUpserter;
 class AssetsController extends Controller
 {
   use MassDeletesByIds;
+  protected $assetsService;
+  public function __construct(AssetsService $assetsService)
+  {
+    $this->assetsService = $assetsService;
+  }
 
   public function index(Request $request)
   {
@@ -61,74 +66,17 @@ class AssetsController extends Controller
     $checklistId = $request->input('checklistId', null);
     $totalEntries = Asset::count();
 
-    $assetsQuery = Asset::query()
-      ->select([
-        'assets.*',
-        DB::raw('COUNT(ci.id) AS total_items'),
-        DB::raw("
-            SUM(
-                CASE
-                    WHEN (
-                        " . DueScheduleQuery::intervalDay . "
-                        OR " . DueScheduleQuery::intervalWeek . "
-                        OR " . DueScheduleQuery::intervalMonth . "
-                        OR " . DueScheduleQuery::intervalHour . "
-                        OR " . DueScheduleQuery::dailySchedule . "
-                    )
-                    THEN 1
-                    ELSE 0
-                END
-            ) AS due_items
-        "),
-        DB::raw("
-          SUM(
-            CASE WHEN cir.checked_at IS NOT NULL THEN 1 ELSE 0 END
-          ) AS done_items
-        "),
-      ])
-      ->with(['location'])
-
-      ->join('checklist_assets as ca', 'ca.asset_id', '=', 'assets.id')
-      ->join('checklist_items as ci', 'ci.checklist_id', '=', 'ca.checklist_id')
-      ->join('entity_checklist_item_schedules as ecs', 'ecs.checklist_item_id', '=', 'ci.id')
-      ->join('schedules as s', 's.id', '=', 'ecs.schedule_id')
-
-      ->leftJoin('checklist_item_results as cir', function ($join) {
-        $join->on('cir.checklist_item_id', '=', 'ci.id')
-          ->on('cir.asset_id', '=', 'assets.id')
-          ->whereRaw('cir.checked_at = (
-                 SELECT MAX(checked_at)
-                 FROM checklist_item_results
-                 WHERE checklist_item_id = ci.id
-                   AND asset_id = assets.id
-             )');
-      })
-
-      ->when($checklistId, function ($query) use ($checklistId) {
-        $query->where('ca.checklist_id', $checklistId);
-      })
-
-      // ->when($checklistId, function ($query) use ($checklistId) {
-      //   $query->whereExists(function ($subQuery) use ($checklistId) {
-      //     $subQuery->select(DB::raw(1))
-      //       ->from('checklist_assets as ac')
-      //       ->whereColumn('ac.asset_id', 'assets.id')
-      //       ->where('ac.checklist_id', $checklistId);
-      //   });
-      // })
-
+    $query = $this->assetsService->getDueAssetsQuery($checklistId)
       ->when($search !== '', function ($query) use ($search) {
         $query->where(function ($q) use ($search) {
           $q->where('code', 'like', "%{$search}%");
         });
-      })
-      ->groupBy('assets.id');
-    // ->orderBy('code', 'asc');
+      });
 
     if ($perPage == -1) {
-      $assets = $assetsQuery->get();
+      $assets = $query->get();
     } else {
-      $assets = $assetsQuery->paginate($perPage);
+      $assets = $query->paginate($perPage);
     }
 
     if ($request->wantsJson()) {
@@ -182,30 +130,6 @@ class AssetsController extends Controller
         'The code provided already exists.',
       ],
     );
-  }
-
-  private function assetRules($id = null)
-  {
-    return [
-      'location_id' => 'nullable|integer|exists:locations,id',
-      'code' => [
-        'required',
-        'string',
-        'max:120',
-        Rule::unique('assets', 'code')->ignore($id),
-      ],
-      'properties' => 'nullable|array',
-    ];
-  }
-
-  private function assetMessages()
-  {
-    return [
-      'location_id.exists' =>
-      'The selected location was not found. Please double-check and try again.',
-      'code.unique' =>
-      'The code provided already exists.',
-    ];
   }
 
   public function massGenocide(Request $request)

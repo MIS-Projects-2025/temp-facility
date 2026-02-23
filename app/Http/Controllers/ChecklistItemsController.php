@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Carbon\Carbon;
 use App\Models\ChecklistItem;
+use App\Models\Employee;
 use Illuminate\Validation\Rule;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\DB;
@@ -89,12 +90,24 @@ class ChecklistItemsController extends Controller
     $assetId = $request->input('assetId');
     $checklistId = $request->input('checklistId');
 
-    $query = DB::table('checklist_items as ci')
+    $latestResults = DB::table('checklist_item_results')
+      ->select(
+        'checklist_item_id',
+        'asset_id',
+        DB::raw('MAX(checked_at) as checked_at')
+      )
+      ->where('asset_id', $assetId)
+      ->groupBy('checklist_item_id', 'asset_id');
+
+    $query =
+      ChecklistItem::query()
+      ->from('checklist_items as ci')
       ->select([
         'ci.id',
         'i.name',
         'ci.item_id',
-        'cir.verified_by',
+        'cs.verified_by',
+        'cs.created_by',
         'ci.criteria',
         's.schedule_name',
         'cir.checked_at',
@@ -126,19 +139,35 @@ class ChecklistItemsController extends Controller
       })
       ->join('entity_checklist_item_schedules as ecs', 'ecs.checklist_item_id', '=', 'ci.id')
       ->join('schedules as s', 's.id', '=', 'ecs.schedule_id')
-      ->leftJoin('checklist_item_results as cir', function ($join) use ($assetId) {
-        $join->on('cir.checklist_item_id', '=', 'ci.id')
-          ->where('cir.asset_id', $assetId)
-          ->whereRaw('cir.checked_at = (
-                     SELECT MAX(checked_at)
-                     FROM checklist_item_results
-                     WHERE checklist_item_id = ci.id
-                 )');
+      ->leftJoinSub($latestResults, 'latest', function ($join) {
+        $join->on('latest.checklist_item_id', '=', 'ci.id');
       })
+      ->leftJoin('checklist_item_results as cir', function ($join) {
+        $join->on('cir.checklist_item_id', '=', 'latest.checklist_item_id')
+          ->on('cir.asset_id', '=', 'latest.asset_id')
+          ->on('cir.checked_at', '=', 'latest.checked_at');
+      })
+      ->leftJoin('checklist_instances as cs', 'cs.id', '=', 'cir.checklist_instance_id')
       ->where('ci.checklist_id', $checklistId)
-      ->orderByDesc('is_due'); // due items appear first
+      ->orderByDesc('is_due');
 
     $results = $query->get();
+
+    $verifierIds = $results->pluck('created_by')
+      ->filter()
+      ->unique();
+
+    $employees = Employee::whereIn('EMPLOYID', $verifierIds)
+      ->select('EMPLOYID', 'FIRSTNAME', 'JOB_TITLE', 'LASTNAME')
+      ->get()
+      ->keyBy('EMPLOYID');
+
+
+    $results->transform(function ($item) use ($employees) {
+      $item->created_by = $employees[$item->created_by] ?? null;
+      $item->verified_by = $employees[$item->verified_by] ?? null;
+      return $item;
+    });
 
     return response()->json($results);
   }

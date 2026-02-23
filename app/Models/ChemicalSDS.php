@@ -11,7 +11,8 @@ class ChemicalSDS extends Model
   public $timestamps = false;
   protected $fillable = [
     'chemical_id',
-    'check_date',
+    'checked_by',
+    'chemical_sds_id',
     'status',
     'remarks',
   ];

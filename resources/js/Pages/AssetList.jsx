@@ -197,6 +197,9 @@ const AssetList = () => {
 		console.log("🚀 ~ handleEditedItemClick ~ row:", row);
 		const rootKey = column?.columnDef?.accessorKey?.split(".")[0];
 		setSelectedCell({ rootKey, row, value, column });
+
+		console.log("🚀 ~ handleEditedItemClick ~ value:", value);
+
 		setSelectedEditItem([value]);
 	}
 

@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 class HazardousWasteTurnOverLogSheet extends Model
 {
   protected $table = 'hazardous_waste_material_turn_over_logsheet';
-  protected $primaryKey = 'reference_no';
+  protected $primaryKey = 'id';
   public $timestamps = false;
   protected $fillable = [
     'reference_no',
@@ -21,6 +21,6 @@ class HazardousWasteTurnOverLogSheet extends Model
   }
 
   protected $casts = [
-    'reference_no' => 'string',
+    'id' => 'string',
   ];
 }

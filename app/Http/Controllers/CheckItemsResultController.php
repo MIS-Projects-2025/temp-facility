@@ -24,7 +24,6 @@ class CheckItemsResultController extends Controller
       'items' => 'required|array|min:1',
       'items.*.checklist_item_id' => 'required|integer|exists:checklist_items,id',
       'items.*.item_status' => 'nullable|string',
-      // 'items.*.item_status' => 'required|string|in:pending,completed,failed',
       'items.*.remarks' => 'nullable|string|max:500',
     ]);
 
@@ -53,6 +52,7 @@ class CheckItemsResultController extends Controller
         'remarks' => $item['remarks'] ?? null,
       ];
     }, array_filter($items, function ($item) {
+      // Ignore empty items
       return isset($item['item_status']) && trim($item['item_status']) !== '';
     }));
 

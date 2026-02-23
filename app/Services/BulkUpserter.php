@@ -14,6 +14,7 @@ class BulkUpserter
   protected array $dateColumns = [];
   protected array $columnRules = [];
   protected array $columnHandlers = [];
+  protected array $attributeNames = [];
 
   /**
    * @param Model $model Eloquent model
@@ -26,16 +27,19 @@ class BulkUpserter
     Model $model,
     array $columnRules = [],
     array $dateColumns = [],
-    array $columnHandlers = []
+    array $columnHandlers = [],
+    array $attributeNames = []
   ) {
     $this->model = $model;
     $this->columnRules = $columnRules;
     $this->dateColumns = $dateColumns;
     $this->columnHandlers = $columnHandlers;
+    $this->attributeNames = $attributeNames;
   }
 
-  protected function isNewRow(string|int $id): bool
+  protected function isNewRow($id): bool
   {
+    if ($id === null) return true;
     return is_string($id) && str_starts_with($id, 'new-');
   }
 
@@ -49,17 +53,17 @@ class BulkUpserter
   public function update(array $rows, ?string $modifiedBy = null): array
   {
     $errors = [];
+    $errorMessages = [];
     $insertedIds = [];
     $updatedIds = [];
 
-    DB::transaction(function () use ($rows, $modifiedBy, &$errors, &$updatedIds) {
+    DB::transaction(function () use ($rows, $modifiedBy, &$errors, &$updatedIds, &$insertedIds) {
       foreach ($rows as $row) {
         $id = $row['id'] ?? null;
         $fields = $row;
         if (empty($fields)) continue;
         $isNew = $this->isNewRow($id);
 
-        Log::info(($id));
         Log::info(($isNew ? "Inserting" : "Updating") . " row: " . json_encode($fields));
 
         // $modelInstance = $this->model->find($id);
@@ -84,12 +88,13 @@ class BulkUpserter
           $fieldsForValidation,
           $rules,
           [
-            '*.integer' => 'Invalid value ":input" for column ":attribute". Must be an integer.',
-            '*.string' => 'Invalid value ":input" for column ":attribute". Must be a string.',
-            '*.date' => 'Invalid date ":input" for column ":attribute".',
-            '*.exists' => 'Value ":input" for column ":attribute" does not exist.',
-            '*.unique' => 'Value ":input" for column ":attribute" already exists.',
-          ]
+            '*.integer' => 'Invalid value :input for column :attribute. Must be an integer.',
+            '*.string' => 'Invalid value :input for column :attribute. Must be a string.',
+            '*.date' => 'Invalid date :input for column :attribute.',
+            '*.exists' => 'Value :input for column :attribute does not exist.',
+            '*.unique' => 'Value :input for column :attribute already exists.',
+          ],
+          $this->attributeNames
         );
 
         Log::info("fields: " . json_encode($fields));
@@ -106,7 +111,7 @@ class BulkUpserter
 
         if ($isNew) {
           $modelInstance = $this->model->create($normalizedData);
-          $insertedIds[] = $modelInstance->id;
+          $insertedIds[] = $modelInstance->getKey();
         } else {
           $modelInstance = $this->model->find($id);
           if (!$modelInstance) continue;
@@ -116,10 +121,29 @@ class BulkUpserter
       }
     });
 
+    if (!empty($errors)) {
+      $maxErrorRows = 20;
+
+      foreach ($errors as $rowId => $columns) {
+        foreach ($columns as $column => $messages) {
+          foreach ($messages as $msg) {
+
+            $cleanMsg = str_replace($column, $column, $msg);
+            $errorMessages[] = "Row " . ($rowId ?? '?') . ": {$cleanMsg}";
+
+            if (count($errorMessages) >= $maxErrorRows) {
+              break 3;
+            }
+          }
+        }
+      }
+    }
+
     return [
       'updated' => $updatedIds,
       'inserted' => $insertedIds,
       'errors' => $errors,
+      'errorMessages' => $errorMessages
     ];
   }
 

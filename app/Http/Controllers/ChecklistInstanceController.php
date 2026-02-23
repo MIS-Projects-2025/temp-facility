@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Checklist;
+use App\Traits\ParseRequestTrait;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
@@ -11,6 +13,7 @@ use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Database\QueryException;
 use App\Traits\MassDeletesByIds;
 use Exception;
+use Illuminate\Support\Facades\Log;
 use App\Models\ChecklistInstance;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\DB;
@@ -18,30 +21,46 @@ use Illuminate\Support\Facades\DB;
 class ChecklistInstanceController extends Controller
 {
   use MassDeletesByIds;
+  use ParseRequestTrait;
 
   public function index(Request $request)
   {
-    $query = ChecklistInstance::with(['results.asset.location', 'results.item.item', 'checklist']);
-    $verified = $request->filled('verified');
-    $created_at = $request->filled('created_at');
-    $checklist_id = $request->filled('checklist_id');
+    $query = ChecklistInstance::with([
+      'results.asset.location',
+      'results.item.item',
+      'checklist',
+      'verifier:EMPLOYID,FIRSTNAME,LASTNAME,JOB_TITLE',
+      'creator:EMPLOYID,FIRSTNAME,LASTNAME,JOB_TITLE',
+      // 'verifier:FIRSTNAME,LASTNAME,JOB_TITLE'
+      // 'verifier'
+    ]);
+    $hasVerified = $request->input('verified', false);
+    $hasCreatedAtStart = $request->filled('created_at_start') ? Carbon::parse($request->created_at_start) : null;
+    $hasCreatedAtEnd = $request->filled('created_at_end') ? Carbon::parse($request->created_at_end) : null;
+    $hasChecklistIds = $request->filled('checklistIds');
+    $checklistIDs = $this->parseChecklists($request, 'checklistIds');
     $perPage = $request->integer('perPage', 30);
+    $allChecklist = Checklist::all();
 
     // might be troublesome
     $totalEntries = $query->count();
 
-    if ($verified) {
-      $verified = filter_var($request->verified, FILTER_VALIDATE_BOOLEAN);
-      $query->when($verified, fn($q) => $q->whereNotNull('verified_at'))
-        ->when(!$verified, fn($q) => $q->whereNull('verified_at'));
+    if ($hasVerified) {
+      $hasVerified = filter_var($request->verified, FILTER_VALIDATE_BOOLEAN);
+      $query->when($hasVerified, fn($q) => $q->whereNotNull('verified_at'))
+        ->when(!$hasVerified, fn($q) => $q->whereNull('verified_at'));
     }
 
-    if ($created_at) {
-      $query->whereDate('created_at', '<=', $request->created_to);
+    if ($hasCreatedAtStart && $hasCreatedAtEnd) {
+      Log::info("created_at_start: {$hasCreatedAtStart}, created_at_end: {$hasCreatedAtEnd}");
+      Log::info("created_at_start: {$request->created_at_start}, created_at_end: {$request->created_at_end}");
+      $hasCreatedAtStart = Carbon::parse($request->created_at_start);
+      $hasCreatedAtEnd   = Carbon::parse($request->created_at_end);
+      $query->whereBetween('created_at', [$hasCreatedAtStart, $hasCreatedAtEnd]);
     }
 
-    if ($checklist_id) {
-      $query->where('checklist_id', $request->checklist_id);
+    if ($hasChecklistIds) {
+      $query->whereIn('checklist_id', $checklistIDs);
     }
 
     $instances = $query->orderByDesc('created_at')
@@ -49,20 +68,24 @@ class ChecklistInstanceController extends Controller
 
     if ($request->wantsJson()) {
       return response()->json([
-        'checklist_instance' => $instances,
-        'verified' => $verified,
-        'created_at' => $created_at,
-        'checklist_id' => $checklist_id,
+        'checklistInstance' => $instances,
+        'verified' => $hasVerified,
+        'createdAtStart' => $hasCreatedAtStart ?? null,
+        'createdAtEnd' => $hasCreatedAtEnd ?? null,
+        'checklistIds' => $hasChecklistIds ? $checklistIDs : [],
+        'checklists' => $allChecklist,
         'perPage' => $perPage,
         'totalEntries' => $totalEntries,
       ]);
     }
 
     return Inertia::render('ChecklistInstanceList', [
-      'checklist_instance' => $instances,
-      'verified' => $verified,
-      'created_at' => $created_at,
-      'checklist_id' => $checklist_id,
+      'checklistInstance' => $instances,
+      'verified' => $hasVerified,
+      'createdAtStart' => $hasCreatedAtStart ?? null,
+      'createdAtEnd' => $hasCreatedAtEnd ?? null,
+      'checklistIds' => $hasChecklistIds ? $checklistIDs : [],
+      'checklists' => $allChecklist,
       'perPage' => $perPage,
       'totalEntries' => $totalEntries,
     ]);

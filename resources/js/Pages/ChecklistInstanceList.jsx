@@ -1,23 +1,45 @@
+import SmartCalendarContainer from "@/Components/DatePicker";
 import Modal from "@/Components/Modal";
 import MultiSelectSearchableDropdown from "@/Components/MultiSelectSearchableDropdown";
-import CheckBoxColumn from "@/Components/tanStackTable/CheckBoxColumn";
+import Pagination from "@/Components/Pagination";
 import { createClickableCell } from "@/Components/tanStackTable/ClickableCell";
 import TanstackTable from "@/Components/tanStackTable/TanstackTable";
 import { useEditableTable } from "@/Hooks/useEditableTable";
 import { useMutation } from "@/Hooks/useMutation";
-import { useChecklistStore } from "@/Store/checklistStore";
+import formatDateTime from "@/Utils/formatDateTime";
+import formatFriendlyDate from "@/Utils/formatFriendlyDate";
 import { formatTimestamp } from "@/Utils/formatISOTimestampToDate";
+import formatPastDateTimeLabel from "@/Utils/formatPastDateTimeLabel";
 import { router, usePage } from "@inertiajs/react";
 import clsx from "clsx";
 import React, { useEffect, useRef, useState } from "react";
 import toast from "react-hot-toast";
+import { MdOutlinePending, MdVerified } from "react-icons/md";
 
 const reviewResultsModalID = "checklist-instance-results-modal";
 const checklistModalID = "checklist-instance-list-checklist-modal";
 const maxItem = 30; // all
 
 function ChecklistInstanceList() {
-	const { data: checklists, isLoading, fetchChecklists } = useChecklistStore();
+	const {
+		checklistInstance: serverChecklistInstance,
+		verified: serverVerified,
+		createdAtStart: serverCreatedAtStart,
+		createdAtEnd: serverCreatedAtEnd,
+		checklistIds: serverChecklistId,
+		checklists: serverChecklists,
+		perPage: serverPerPage,
+		totalEntries,
+	} = usePage().props;
+
+	console.log(
+		"🚀 ~ ChecklistInstanceList ~ serverChecklistId:",
+		serverChecklistId,
+		console.log(
+			"🚀 ~ ChecklistInstanceList ~ serverChecklists:",
+			serverChecklists,
+		),
+	);
 
 	const {
 		mutate,
@@ -29,9 +51,25 @@ function ChecklistInstanceList() {
 
 	const [selectedInstance, setSelectedInstance] = useState([]);
 	const [selectedCell, setSelectedCell] = useState(null);
-	const [selectedChecklist, setSelectedChecklist] = React.useState([]);
-	const [filterVerified, setFilterVerified] = useState(false);
-	const [filterCreateDate, setFilterCreateDate] = useState(null);
+	const [selectedChecklist, setSelectedChecklist] = React.useState(
+		serverChecklistId?.map((checklistId) => Number(checklistId)),
+	);
+
+	const defaultChecklistNames =
+		serverChecklists
+			?.filter((checklist) => selectedChecklist.includes(checklist.id))
+			.map((checklist) => checklist.name) || [];
+
+	console.log(
+		"🚀 ~ handleEditedItemClick ~ defaultChecklistNames:",
+		defaultChecklistNames,
+	);
+
+	const [filterVerified, setFilterVerified] = useState(serverVerified || false);
+	const [filterCreateDateStart, setFilterCreateDateStart] =
+		useState(serverCreatedAtStart);
+	const [filterCreateDateEnd, setFilterCreateDateEnd] =
+		useState(serverCreatedAtEnd);
 
 	console.log(
 		"🚀 ~ ChecklistInstanceList ~ selectedChecklist:",
@@ -42,8 +80,9 @@ function ChecklistInstanceList() {
 		router.reload({
 			data: {
 				verified: filterVerified,
-				created_at: filterCreateDate,
-				checklist_id: selectedChecklist,
+				createdAtStart: formatDateTime(filterCreateDateStart),
+				createdAtEnd: formatDateTime(filterCreateDateEnd),
+				checklistIds: selectedChecklist.join(","),
 				perPage: maxItem,
 			},
 			preserveState: true,
@@ -68,15 +107,27 @@ function ChecklistInstanceList() {
 						header: "Checklist",
 						accessorKey: "checklist",
 						cell: ({ row }) => {
+							console.log("🚀 ~ ChecklistInstanceList ~ row:", row);
 							const checklist = row.original.checklist;
+							const isVerified = row.original.verified_at !== null;
 							return (
 								<div className="justify-center flex flex-col items-left">
-									<span>{checklist.name}</span>
-									<span className="text-xs">{checklist.form_control_no}</span>
+									<div className="flex gap-1">
+										{isVerified ? (
+											<MdVerified className="w-4 h-4 text-green-500" />
+										) : (
+											<MdOutlinePending className="w-4 h-4 text-yellow-500" />
+										)}
+										<span>{checklist.name}</span>
+									</div>
+									<div className="text-xs opacity-75 flex gap-1">
+										<span>{checklist.form_control_no}</span>
+										<span></span>
+									</div>
 								</div>
 							);
 						},
-						size: 350,
+						size: 400,
 					},
 				],
 			},
@@ -87,7 +138,7 @@ function ChecklistInstanceList() {
 
 					return `review (${row.results.length}) item results`;
 				},
-				size: 200,
+				size: 250,
 				cell: createClickableCell({
 					modalID: reviewResultsModalID,
 					handleCellClick: handleEditedItemClick,
@@ -95,33 +146,37 @@ function ChecklistInstanceList() {
 				}),
 			},
 			{
-				header: "Status",
-				accessorKey: "verified", // can be anything; we'll use row.original
+				header: "Verified",
+				accessorKey: "verified_at", // or just use row.original
 				cell: ({ row }) => {
-					const { verified_at, verified_by, created_at, created_by } =
-						row.original;
-
+					const { verified_at, verified_by, verifier } = row.original;
 					const notVerified = !verified_at && !verified_by;
 
+					const verifierName = verifier
+						? `${verifier.FIRSTNAME} ${verifier.LASTNAME}`
+						: "unknown";
+
 					return (
-						<div className="flex flex-col gap-2 py-4 w-full h-full text-right mr-2">
-							{/* Verified */}
-							<div className="flex flex-col items-end place-content-end h-full w-full relative">
-								<span
-									className={clsx("text-xs", {
-										"bg-warning/50": notVerified,
-										"badge-success": !notVerified,
-									})}
-								>
+						<div className="flex flex-col px-1 gap-1 text-left w-full">
+							<div className="text-xs">
+								by:
+								{verified_by ? (
+									<span className="ml-1 badge badge-xs badge-soft badge-primary">
+										{verifierName} ({verified_by})
+									</span>
+								) : (
+									<span className="ml-1 opacity-50 text-xs">N/A</span>
+								)}
+							</div>
+							<div
+								className={clsx("text-xs", {
+									"badge-success": !notVerified,
+								})}
+							>
+								{formatPastDateTimeLabel(verified_at)}
+								<span className="ml-1 opacity-50">
 									{verified_at ? formatTimestamp(verified_at) : "pending"}
 								</span>
-								<div className="text-xs">
-									verified by:
-									<span className="min-w-10 ml-1 badge badge-xs badge-soft badge-primary">
-										{verified_by || "N/A"}
-									</span>
-								</div>
-								{/* Right rectangle */}
 							</div>
 							<div
 								className={clsx(
@@ -129,61 +184,52 @@ function ChecklistInstanceList() {
 									notVerified ? "bg-warning" : "bg-success",
 								)}
 							/>
+						</div>
+					);
+				},
+				size: 150,
+			},
+			{
+				header: "Performed",
+				accessorKey: "created_at", // or row.original
+				cell: ({ row }) => {
+					const { created_at, created_by, creator } = row.original;
+					console.log("🚀 ~ ChecklistInstanceList ~ created_at:", created_at);
 
-							{/* Checked */}
-							<div className="place-content-start items-end flex flex-col h-full relative">
-								<span className="text-xs w-full badge-secondary">
-									{created_at ? formatTimestamp(created_at) : "Not checked"}
-								</span>
+					const creatorName = creator
+						? `${creator.FIRSTNAME} ${creator.LASTNAME}`
+						: "unknown";
+
+					return (
+						<div className="flex flex-col px-1 gap-1 w-full">
+							<div className="text-xs">
 								<div className="text-xs">
-									performed by:
-									<span className="min-w-10 ml-1 badge badge-xs badge-soft badge-primary">
-										{created_by || "N/A"}
-									</span>
+									by:
+									{created_by ? (
+										<span className="ml-1 badge badge-xs badge-soft badge-primary">
+											{creatorName} ({created_by})
+										</span>
+									) : (
+										<span className="ml-1 opacity-50 text-xs">N/A</span>
+									)}
 								</div>
+							</div>
+							<div className="text-xs w-full badge-secondary">
+								{formatPastDateTimeLabel(created_at)}
+								<span className="ml-1 opacity-50">
+									{created_at
+										? `${formatTimestamp(created_at)}`
+										: "Not checked"}
+								</span>
 							</div>
 						</div>
 					);
 				},
-				size: 200, // adjust width as needed
+				size: 150,
 			},
-
-			// {
-			//     header: "Audit Info",
-			//     columns: [
-			//         ReadOnlyColumns({
-			//             accessorKey: "created_at",
-			//             header: "Created At",
-			//             options: { size: 140 },
-			//         }),
-			//         ReadOnlyColumns({
-			//             accessorKey: "created_by",
-			//             header: "Created By",
-			//             options: { size: 140 },
-			//         }),
-			//         ReadOnlyColumns({
-			//             accessorKey: "modified_by",
-			//             header: "Modified By",
-			//         }),
-			//         ReadOnlyColumns({
-			//             accessorKey: "modified_at",
-			//             header: "Modified At",
-			//             options: { size: 160 },
-			//         }),
-			//     ],
-			// },
 		],
 		[],
 	);
-
-	const {
-		checklist_instance: serverChecklistInstance,
-		// verified:
-		// created_at:
-		// checklist_id:
-		// perPage:
-		// totalEntries:
-	} = usePage().props;
 
 	const { table } = useEditableTable(
 		serverChecklistInstance.data || [],
@@ -193,8 +239,10 @@ function ChecklistInstanceList() {
 		},
 	);
 
-	const handleVerify = async () => {
-		if (Object.keys(table.getState().rowSelection).length === 0) {
+	const handleVerify = async (
+		instances = Object.keys(table.getState().rowSelection),
+	) => {
+		if (instances.length === 0) {
 			alert("No selected rows to verify.");
 			return;
 		}
@@ -203,7 +251,7 @@ function ChecklistInstanceList() {
 		try {
 			await mutate(route("api.checklist-instance.verify"), {
 				method: "PATCH",
-				body: Object.keys(table.getState().rowSelection),
+				body: instances,
 			});
 			refresh();
 		} catch (error) {
@@ -245,54 +293,106 @@ function ChecklistInstanceList() {
 	const processed = preprocessResults(selectedInstance.results);
 	console.log("🚀 ~ ChecklistInstanceList ~ processed:", processed);
 
+	useEffect(() => {
+		router.reload({
+			data: {
+				verified: filterVerified,
+				createdAtStart: formatDateTime(filterCreateDateStart),
+				createdAtEnd: formatDateTime(filterCreateDateEnd),
+				checklistIds: selectedChecklist.join(","),
+				perPage: serverPerPage,
+			},
+			preserveState: true,
+			preserveScroll: true,
+		});
+	}, [
+		filterVerified,
+		filterCreateDateStart,
+		filterCreateDateEnd,
+		selectedChecklist,
+		serverPerPage,
+	]);
+
+	const goToPage = (page) => {
+		router.reload({
+			data: {
+				perPage: maxItem,
+				page,
+			},
+			preserveState: true,
+			preserveScroll: true,
+		});
+	};
+
+	const handleDateFilterChange = (dates) => {
+		const [start, end] = dates;
+		setFilterCreateDateStart(start);
+		setFilterCreateDateEnd(end);
+	};
+
+	// return null;
 	return (
 		<div>
-			{/* <pre>{JSON.stringify(table.getState().rowSelection, null, 2)}</pre>( */}
-			{/* {data.length} rows) */}
 			<h1 className="text-lg font-semibold">Performed Checklist List</h1>
-			<MultiSelectSearchableDropdown
-				modalId={checklistModalID}
-				options={
-					checklists?.checklistArray?.map((checklist) => ({
-						id: checklist.id,
-						value: checklist.name,
-						label: checklist.form_control_no,
-						original: checklist,
-					})) || []
-				}
-				onChange={(value) => {
-					console.log("🚀 ~ ChecklistList ~ value:", value);
-					setSelectedChecklist(value);
-				}}
-				returnKey="id"
-				defaultSelectedOptions={selectedChecklist}
-				// controlledSelectedOptions={selectedChecklist}
-				// customButtonLabel={({ selectedOptions }) => {
-				//     return (
-				//         <div>
-				//             {selectedOptions.length > 0 ? (
-				//                 <div className="flex items-center justify-between w-full">
-				//                     <h1 className="flex gap-2 items-center w-full text-lg">
-				//                         <span className="text-sm font-normal text-base-content">
-				//                             Performing
-				//                         </span>
-				//                         <span>{selectedOptions[0]}</span>
-				//                     </h1>
-				//                 </div>
-				//             ) : (
-				//                 "Select a checklist to perform"
-				//             )}
-				//         </div>
-				//     );
-				// }}
-				disableSelectedContainer
-				disableTooltip
-				isLoading={isLoading}
-				itemName="Checklist List"
-				prompt="Select Checklist"
-				contentClassName="h-50"
-				buttonSelectorClassName="min-h-8 w-full h-auto btn-soft btn-primary text-left"
-			/>
+			<div className="flex">
+				<fieldset className="fieldset bg-base-100 border-base-300 rounded-box w-64 border p-4">
+					<legend className="fieldset-legend">Filter Verified</legend>
+					<label className="label">
+						<input
+							type="checkbox"
+							checked={filterVerified}
+							className="toggle border-warning-600 bg-warning-500 checked:border-success-500 checked:bg-success-400 checked:text-success"
+							onChange={(e) => setFilterVerified(e.target.checked)}
+						/>
+						<span className="label-text">
+							{filterVerified ? "Verified" : "Unverified"}
+						</span>
+					</label>
+				</fieldset>
+
+				<div className="flex flex-col w-full">
+					<MultiSelectSearchableDropdown
+						modalId={checklistModalID}
+						options={
+							serverChecklists?.map((checklist) => ({
+								id: checklist.id,
+								value: checklist.name,
+								label: checklist.form_control_no,
+								original: checklist,
+							})) || []
+						}
+						onChange={(value) => {
+							setSelectedChecklist(value);
+						}}
+						returnKey="id"
+						defaultSelectedOptions={defaultChecklistNames}
+						disableSelectedContainer
+						disableTooltip
+						itemName="Checklist List"
+						prompt="Filter Checklist"
+						contentClassName="w-full h-50"
+						buttonSelectorClassName="min-h-8 w-full h-auto btn-soft btn-primary text-left"
+					/>
+					<div>Date performed filter</div>
+
+					<SmartCalendarContainer
+						selectedDate={filterCreateDateStart}
+						onChange={handleDateFilterChange}
+						startDate={filterCreateDateStart}
+						endDate={filterCreateDateEnd}
+						props={{
+							portalId: "root-portal",
+							className: "w-120 input z-50",
+							swapRange: true,
+							selectsRange: true,
+							isClearable: true,
+							showTimeSelect: true,
+							timeIntervals: 15,
+							dateFormat: "yyyy-MM-dd HH:mm",
+						}}
+					/>
+				</div>
+			</div>
 			<div className="flex gap-2 sticky right-0">
 				<button
 					type="button"
@@ -303,14 +403,41 @@ function ChecklistInstanceList() {
 					Verify
 				</button>
 			</div>
+
+			<Pagination
+				links={serverChecklistInstance?.links}
+				currentPage={serverChecklistInstance?.current_page}
+				goToPage={goToPage}
+				filteredTotal={serverChecklistInstance?.total}
+				overallTotal={totalEntries}
+				start={serverChecklistInstance?.from}
+				end={serverChecklistInstance?.to}
+			/>
+
 			<TanstackTable table={table} />
 
 			<Modal
 				id={reviewResultsModalID}
-				title="Review Checklist Instance Results"
+				title="Review Checklist"
 				className="w-11/12 max-w-6xl"
 			>
-				<div className="mt-2 overflow-x-auto">
+				<div className="flex justify-between items-center">
+					<div>
+						{selectedInstance?.checklist?.name} -{" "}
+						<span className="text-xs">
+							{selectedInstance?.checklist?.form_control_no}
+						</span>
+					</div>
+
+					<div className="leading-3 text-xs opacity-75">
+						created{" "}
+						<span className="font-semibold">
+							{formatPastDateTimeLabel(selectedInstance?.created_at)}
+						</span>{" "}
+						({formatFriendlyDate(selectedInstance?.created_at, true)})
+					</div>
+				</div>
+				<div className="mt-2 overflow-x-auto max-h-160">
 					<table className="border border-base-content/10 table table-zebra w-full divide-y">
 						<thead className="">
 							<tr>
@@ -322,35 +449,62 @@ function ChecklistInstanceList() {
 							</tr>
 						</thead>
 						<tbody className="divide-y">
-							{processed.map((r) => (
-								<tr key={r.id} className="">
-									{r.rowSpan > 0 && (
-										<td className="px-4 py-2 text-sm " rowSpan={r.rowSpan}>
-											<div>
-												<span>{r.asset?.code || "N/A"}</span>
-												<span className="pl-1 opacity-75 text-xs">
-													@ {r.asset?.location?.location_name || "N/A"}
-												</span>
-											</div>
+							{processed?.length > 0 &&
+								processed.map((r) => (
+									<tr key={r.id} className="">
+										{r.rowSpan > 0 && (
+											<td className="px-4 py-2 text-sm " rowSpan={r.rowSpan}>
+												<div>
+													<span>{r.asset?.code || "N/A"}</span>
+													<span className="pl-1 opacity-75 text-xs">
+														@ {r.asset?.location?.location_name || "N/A"}
+													</span>
+												</div>
+											</td>
+										)}
+										<td className="px-4 py-2 text-sm ">
+											{r.item?.item?.name || "N/A"}
 										</td>
-									)}
-									<td className="px-4 py-2 text-sm ">
-										{r.item?.item?.name || "N/A"}
+										<td className="px-4 py-2 text-sm ">
+											{r.item?.criteria || "N/A"}
+										</td>
+										<td className="px-4 py-2 text-sm ">
+											{r.item_status || "N/A"}
+										</td>
+										<td className="px-4 py-2 text-sm ">{r.remarks || "N/A"}</td>
+									</tr>
+								))}
+
+							{processed?.length === 0 && (
+								<tr>
+									<td colSpan="5" className="px-4 py-2 text-sm text-center">
+										No items
 									</td>
-									<td className="px-4 py-2 text-sm ">
-										{r.item?.criteria || "N/A"}
-									</td>
-									<td className="px-4 py-2 text-sm ">
-										{r.item_status || "N/A"}
-									</td>
-									<td className="px-4 py-2 text-sm ">{r.remarks || "N/A"}</td>
 								</tr>
-							))}
+							)}
 						</tbody>
 					</table>
-					<div className="border border-base-content/10 w-full p-2">
-						notes: {selectedInstance.notes || "N/A"}
-					</div>
+				</div>
+				<div className="flex justify-between border border-base-content/10 w-full p-2">
+					<div>notes: {selectedInstance.notes || "N/A"}</div>
+					{selectedInstance?.verified_at ? (
+						<div>
+							<MdVerified className="text-success inline mr-1" /> verified{" "}
+							{formatPastDateTimeLabel(selectedInstance?.verified_at)} by
+							<span className="px-1 text-primary">
+								{selectedInstance?.verifier?.FIRSTNAME || "unkown"}
+							</span>
+							<span>({selectedInstance?.verifier?.EMPLOYID || "unkown"})</span>
+						</div>
+					) : (
+						<button
+							type="button"
+							className="btn btn-primary"
+							onClick={() => handleVerify([selectedInstance?.id])}
+						>
+							Verify
+						</button>
+					)}
 				</div>
 			</Modal>
 		</div>

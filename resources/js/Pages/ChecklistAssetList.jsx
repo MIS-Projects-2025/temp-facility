@@ -325,7 +325,6 @@ const ChecklistAssetList = () => {
 						})) || []
 					}
 					onChange={(value) => {
-						console.log("🚀 ~ ChecklistList ~ value:", value);
 						reload(value[0]?.id);
 					}}
 					returnKey="original"

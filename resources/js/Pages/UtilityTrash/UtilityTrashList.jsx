@@ -1,3 +1,5 @@
+import SmartCalendarContainer from "@/Components/DatePicker";
+import MaxItemDropdown from "@/Components/MaxItemDropdown";
 import Modal from "@/Components/Modal";
 import Pagination from "@/Components/Pagination";
 import TimeLine from "@/Components/TimeLine";
@@ -5,6 +7,7 @@ import TogglerButtons from "@/Components/TogglerButtons";
 import { TOGGLE_UTILITY_TRASH_STATUS_BUTTONS } from "@/Constants/togglerButtons";
 import { useMutation } from "@/Hooks/useMutation";
 import { useToast } from "@/Hooks/useToast";
+import formatDateTime from "@/Utils/formatDateTime";
 import {
 	DATE_ONLY_FORMAT,
 	formatTimestamp,
@@ -13,6 +16,8 @@ import {
 import { router, usePage } from "@inertiajs/react";
 import clsx from "clsx";
 import { useEffect, useRef, useState } from "react";
+import DatePicker from "react-datepicker";
+import "react-datepicker/dist/react-datepicker.css";
 import SearchInput from "../SearchInput";
 import UpdateChecklist from "./UpdateChecklist";
 
@@ -23,6 +28,8 @@ const UtilityTrashList = () => {
 		utilityTrash: serverUtilityTrash,
 		isNotVerified: serverIsNotVerified,
 		isVerified: serverIsVerified,
+		startDate: serverStartDate,
+		endDate: serverEndDate,
 		search: serverSearch,
 		perPage: serverPerPage,
 		totalEntries,
@@ -46,6 +53,9 @@ const UtilityTrashList = () => {
 		not_verified: serverIsNotVerified,
 		verified: serverIsVerified,
 	});
+	const [filterDateStart, setFilterDateStart] = useState(serverStartDate);
+	const [filterDateEnd, setFilterDateEnd] = useState(serverEndDate);
+	console.log("🚀 ~ UtilityTrashList ~ performDate:", performDate);
 
 	const handleToggleStatus = (name, key) => {
 		setStatusFilters((prev) => ({ ...prev, [key]: !prev[key] }));
@@ -59,7 +69,7 @@ const UtilityTrashList = () => {
 		}));
 	};
 
-	const [maxItem, setMaxItem] = useState(serverPerPage || 10);
+	const [maxItem, setMaxItem] = useState(serverPerPage || 100);
 	const [selectedEntry, setSelectedEntry] = useState(null);
 
 	const {
@@ -76,6 +86,8 @@ const UtilityTrashList = () => {
 					search: searchInput,
 					isNotVerified: statusFilters.not_verified,
 					isVerified: statusFilters.verified,
+					startDate: formatDateTime(filterDateStart),
+					endDate: formatDateTime(filterDateEnd),
 					perPage: maxItem,
 					page: 1,
 				},
@@ -85,7 +97,7 @@ const UtilityTrashList = () => {
 		}, 700);
 
 		return () => clearTimeout(timer);
-	}, [searchInput, statusFilters]);
+	}, [searchInput, statusFilters, maxItem, filterDateStart, filterDateEnd]);
 
 	const goToPage = (page) => {
 		router.reload({
@@ -123,7 +135,7 @@ const UtilityTrashList = () => {
 				isNotVerified: statusFilters.not_verified,
 				isVerified: statusFilters.verified,
 				perPage: maxItem,
-				currentPage,
+				page: 1,
 			},
 			preserveState: true,
 			preserveScroll: true,
@@ -172,6 +184,12 @@ const UtilityTrashList = () => {
 		}
 	};
 
+	const handleDateFilterChange = (dates) => {
+		const [start, end] = dates;
+		setFilterDateStart(start);
+		setFilterDateEnd(end);
+	};
+
 	return (
 		<>
 			<div className="w-full px-4">
@@ -181,31 +199,10 @@ const UtilityTrashList = () => {
 
 				<div className="flex items-center justify-between py-4">
 					<div>
-						<div className="dropdown dropdown-bottom">
-							<div tabIndex={0} className="m-1 btn">
-								{`Show ${maxItem} items`}
-							</div>
-							<ul
-								tabIndex={0}
-								className="p-2 shadow-lg dropdown-content menu bg-base-100 rounded-lg z-1 w-52"
-							>
-								{[10, 25, 50, 100].map((item) => (
-									<li key={item}>
-										<a
-											onClick={() => {
-												changeMaxItemPerPage(item);
-											}}
-											className="flex items-center justify-between"
-										>
-											{item}
-											{maxItem === item && (
-												<span className="font-bold text-green-500">✔</span>
-											)}
-										</a>
-									</li>
-								))}
-							</ul>
-						</div>
+						<MaxItemDropdown
+							maxItem={maxItem}
+							changeMaxItemPerPage={changeMaxItemPerPage}
+						/>
 
 						<TogglerButtons
 							id="toggle-performed-verified-all"
@@ -213,6 +210,24 @@ const UtilityTrashList = () => {
 							visibleBars={statusFilters}
 							toggleBar={handleToggleStatus}
 							toggleAll={toggleAllStatus}
+						/>
+
+						<div>Date performed filter</div>
+						<SmartCalendarContainer
+							selectedDate={filterDateStart}
+							onChange={handleDateFilterChange}
+							startDate={filterDateStart}
+							endDate={filterDateEnd}
+							props={{
+								portalId: "root-portal",
+								className: "w-80 input z-50",
+								swapRange: true,
+								selectsRange: true,
+								isClearable: true,
+								showTimeSelect: true,
+								timeIntervals: 15,
+								dateFormat: "yyyy-MM-dd HH:mm",
+							}}
 						/>
 					</div>
 
@@ -294,6 +309,16 @@ const UtilityTrashList = () => {
 					/>
 				</div>
 
+				<Pagination
+					links={serverUtilityTrash?.links}
+					currentPage={serverUtilityTrash?.current_page}
+					goToPage={goToPage}
+					filteredTotal={serverUtilityTrash?.total}
+					overallTotal={totalEntries}
+					start={serverUtilityTrash?.from}
+					end={serverUtilityTrash?.to}
+				/>
+
 				<table className="table w-full table-auto table-xs">
 					<thead>
 						<tr>
@@ -365,16 +390,6 @@ const UtilityTrashList = () => {
 						))}
 					</tbody>
 				</table>
-
-				<Pagination
-					links={serverUtilityTrash?.links}
-					currentPage={serverUtilityTrash?.current_page}
-					goToPage={goToPage}
-					filteredTotal={serverUtilityTrash?.total}
-					overallTotal={totalEntries}
-					start={serverUtilityTrash?.from}
-					end={serverUtilityTrash?.to}
-				/>
 			</div>
 			<Modal
 				ref={verifyModalRef}
@@ -433,8 +448,33 @@ const UtilityTrashList = () => {
 				className="max-w-lg"
 			>
 				<p className="px-2 pt-4">
-					Make sure this is the correct entry before proceeding.
+					Make sure this is the correct entry before proceeding. Or you can have
+					a custom perform date by inputting the date below.
 				</p>
+
+				<input
+					type="datetime-local"
+					value={
+						performDate
+							? new Date(performDate).toLocaleDateString("en-CA") +
+								"T" +
+								new Date(performDate).toLocaleTimeString("it-IT", {
+									hour: "2-digit",
+									minute: "2-digit",
+								})
+							: ""
+					}
+					className="input w-full"
+					onChange={(e) => setPerformDate(new Date(e.target.value))}
+				/>
+
+				<button
+					type="button"
+					className="btn mt-1 btn-secondary btn-outline w-full"
+					onClick={() => setPerformDate(new Date())}
+				>
+					use current time
+				</button>
 
 				<p
 					className="p-2 border rounded-lg bg-error/10 text-error"

@@ -9,6 +9,8 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
 use App\Models\HazardousWasteTurnOverLogSheet as HazardWaste;
+use Illuminate\Validation\Rule;
+use App\Services\BulkUpserter;
 
 class HazardousWasteTurnOverLogSheetController extends Controller
 {
@@ -21,14 +23,14 @@ class HazardousWasteTurnOverLogSheetController extends Controller
     $totalEntries = HazardWaste::count();
 
     $hazardousWaste = HazardWaste::query()
-      ->with([
-        'requestor:EMPLOYID,EMPNAME,JOB_TITLE,DEPARTMENT',
-      ])
+      // ->with([
+      //   'requestor:EMPLOYID,EMPNAME,JOB_TITLE,DEPARTMENT',
+      // ])
       ->when($search, function ($query, $search) {
         // todo : add search for performed_by and verified_by using the name
         $query->where(function ($q) use ($search) {
           $q->orWhere('requestor', 'like', "%{$search}%");
-          $q->orWhere('reference_no', 'like', "%{$search}%");
+          $q->orWhere('id', 'like', "%{$search}%");
         });
       })
       ->orderBy('date', 'desc')
@@ -37,12 +39,48 @@ class HazardousWasteTurnOverLogSheetController extends Controller
 
     Log::info("utilityTrash: ", [$hazardousWaste]);
 
-
     return Inertia::render('HazardousWasteLogSheetList', [
       'hazardousWaste' => $hazardousWaste,
       'search' => $search,
       'perPage' => $perPage,
       'totalEntries' => $totalEntries,
+    ]);
+  }
+
+  public function bulkUpdate(Request $request)
+  {
+    $rows = $request->all();
+    $user = session('emp_data');
+
+    $columnRules = [
+      'reference_no' => fn($id) => [
+        'required',
+        'string',
+        Rule::unique('hazardous_waste_material_turn_over_logsheet', 'reference_no')
+          ->ignore($id),
+      ],
+      'requestor' => [
+        'required',
+        'int',
+      ],
+    ];
+
+    $bulkUpdater = new BulkUpserter(new HazardWaste(), $columnRules, [], []);
+
+    $result = $bulkUpdater->update($rows, $user['emp_id'] ?? null);
+
+    if (!empty($result['errors'])) {
+      return response()->json([
+        'status' => 'error',
+        'message' => 'You have ' . count($result['errors']) . ' error/s',
+        'data' => $result['errors']
+      ], 422);
+    }
+
+    return response()->json([
+      'status' => 'ok',
+      'message' => 'Updated successfully',
+      'updated' => $result['updated']
     ]);
   }
 

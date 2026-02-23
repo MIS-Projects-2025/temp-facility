@@ -1,7 +1,7 @@
 <?php
 
 use App\Http\Controllers\ChemicalsController;
-use App\Http\Controllers\ChemicalSDSController;
+use App\Http\Controllers\ChemicalSDSMonitoringInstanceController;
 use App\Http\Controllers\DemoController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\General\AdminController;
@@ -16,6 +16,7 @@ use App\Http\Controllers\SchedulesController;
 use App\Http\Controllers\AssetsController;
 use App\Http\Controllers\ChecklistAssetsController;
 use App\Http\Controllers\PerformChecklistController;
+use App\Http\Controllers\PerformSDSMonitoringController;
 use App\Http\Controllers\ChecklistInstanceController;
 use App\Http\Controllers\AssetPmSchedulesController;
 use App\Http\Controllers\HazardousWasteTurnOverLogSheetController;
@@ -85,16 +86,16 @@ Route::prefix('chemicals')->name('chemicals.')->group(
     }
 );
 
-Route::prefix('chemicals-sds')->name('chemicals-sds.')->group(
+Route::prefix('chemicals-sds-instances')->name('chemicals-sds-instances.')->group(
+    function () {
+        Route::get("/", [ChemicalSDSMonitoringInstanceController::class, 'index'])->name('index');
+    }
+);
+
+Route::prefix('checklist')->name('checklist.')->group(
     function () {
         Route::middleware([])->group(function () {
-            Route::get("/", [ChemicalSDSController::class, 'index'])->name('index');
-        });
-        Route::middleware([])->group(function () {
-            Route::get("/create", [ChemicalSDSController::class, 'upsert'])->name('create');
-        });
-        Route::middleware([])->group(function () {
-            Route::get("/{id}/edit", [ChemicalSDSController::class, 'upsert'])->name('edit');
+            Route::get("/list", [ChecklistsController::class, 'index'])->name('index');
         });
     }
 );
@@ -102,7 +103,7 @@ Route::prefix('chemicals-sds')->name('chemicals-sds.')->group(
 Route::prefix('checklist-items')->name('checklist-items.')->group(
     function () {
         Route::middleware([])->group(function () {
-            Route::get("/", [ChecklistsController::class, 'index'])->name('index');
+            Route::get("/", [ChecklistsController::class, 'viewChecklistItems'])->name('index');
         });
         Route::middleware([])->group(function () {
             Route::get("/create", [ChecklistsController::class, 'upsert'])->name('create');
@@ -172,19 +173,15 @@ Route::prefix('checklist-assets')->name('checklist-assets.')->group(
     }
 );
 
-Route::prefix('perform-checklist')->name('perform-checklist.')->group(
-    function () {
-        Route::middleware([])->group(function () {
-            Route::get("/", [PerformChecklistController::class, 'index'])->name('index');
-        });
-        Route::middleware([])->group(function () {
-            Route::get("/create", [PerformChecklistController::class, 'upsert'])->name('create');
-        });
-        Route::middleware([])->group(function () {
-            Route::get("/{id}/edit", [PerformChecklistController::class, 'upsert'])->name('edit');
-        });
-    }
-);
+Route::prefix('perform')->name('perform.')->group(function () {
+    Route::prefix('checklist')->name('checklist.')->group(function () {
+        Route::get('/', [PerformChecklistController::class, 'index'])->name('index');
+    });
+    Route::prefix('sds-monitoring')->name('sds-monitoring.')->group(function () {
+        Route::get('/', [PerformSDSMonitoringController::class, 'index'])->name('index');
+    });
+});
+
 
 Route::prefix('checklist-instance')->name('checklist-instance.')->group(
     function () {

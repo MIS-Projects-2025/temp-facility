@@ -20,9 +20,11 @@ class UtilityTrashController extends Controller
   public function index(Request $request)
   {
     $search = $request->input('search', '');
+    $startDate = $request->filled('startDate') ? Carbon::parse($request->startDate) : null;
+    $endDate = $request->filled('endDate') ? Carbon::parse($request->endDate) : null;
     $isVerified = filter_var($request->input('isVerified'), FILTER_VALIDATE_BOOLEAN);
     $isNotVerified = filter_var($request->input('isNotVerified'), FILTER_VALIDATE_BOOLEAN);
-    $perPage = $request->input('perPage', 10);
+    $perPage = $request->input('perPage', 100);
     $totalEntries = UtilityTrash::count();
 
     $utilityTrash = UtilityTrash::query()
@@ -43,6 +45,9 @@ class UtilityTrashController extends Controller
         } elseif (!$isVerified && $isNotVerified) {
           $query->whereNull('verified_by');
         }
+      })
+      ->when($startDate && $endDate, function ($query) use ($startDate, $endDate) {
+        $query->whereBetween('date', [$startDate, $endDate]);
       })
       ->orderBy('date', 'desc')
       ->paginate($perPage)

@@ -221,7 +221,6 @@ const AssetPmScheduleList = () => {
 		}
 	};
 
-	console.log("🚀 ~ ChecklistList ~ selectedChecklist:", selectedChecklist);
 	const deleteModalRef = useRef(null);
 
 	const saveChanges = async () => {

@@ -43,6 +43,10 @@ const MultiSelectSearchableDropdown = memo(
 		const [selectedOptions, setSelectedOptions] = useState(
 			defaultSelectedOptions,
 		);
+		console.log(
+			"🚀 ~ MultiSelectSearchableDropdown ~ selectedOptions:",
+			selectedOptions,
+		);
 		const [searchInput, setSearchInput] = useState("");
 		const [debouncedSearch, setDebouncedSearch] = useState("");
 
@@ -198,17 +202,17 @@ const MultiSelectSearchableDropdown = memo(
 					)}
 				</div>
 
-				<div className={clsx("flex", contentClassName)}>
+				<div className={clsx("flex w-full", contentClassName)}>
 					<div className="overflow-y-auto w-full flex flex-col">
 						{filteredOptions.length === 0 ? (
-							<div className="p-2 text-sm text-gray-500">
+							<div className="p-2 text-sm w-full text-gray-500">
 								No matches found for {debouncedSearch}
 							</div>
 						) : (
 							filteredOptions.map((option) => (
 								<label
 									key={option.value}
-									className="flex items-center whitespace-nowrap cursor-pointer px-2 py-1 hover:bg-primary/10 rounded"
+									className="flex items-center w-full cursor-pointer px-2 py-1 hover:bg-primary/10 rounded"
 								>
 									<input
 										type={singleSelect ? "radio" : "checkbox"}

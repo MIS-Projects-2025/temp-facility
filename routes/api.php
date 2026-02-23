@@ -9,6 +9,7 @@ use App\Http\Controllers\UtilityTrashController;
 use App\Http\Controllers\ChecklistItemsController;
 use App\Http\Controllers\CheckItemsController;
 use App\Http\Controllers\AssetsController;
+use App\Http\Controllers\PerformSDSMonitoringController;
 use App\Http\Controllers\ChecklistAssetsController;
 use App\Http\Controllers\AssetPmSchedulesController;
 use App\Http\Controllers\ChecklistItemSchedulesController;
@@ -45,6 +46,8 @@ Route::middleware([ApiAuthMiddleware::class])
     Route::prefix('hazardous-log-sheet')->name('hazardous-log-sheet.')->group(function () {
       Route::post('/add', [HazardousWasteTurnOverLogSheetController::class, 'store'])
         ->name('add');
+      Route::patch('/bulk-update', [HazardousWasteTurnOverLogSheetController::class, 'bulkUpdate'])
+        ->name('bulkUpdate');
       Route::delete('/{reference_no}/delete', [HazardousWasteTurnOverLogSheetController::class, 'destroy'])
         ->name('delete');
       Route::patch('/{reference_no}/update', [HazardousWasteTurnOverLogSheetController::class, 'update'])
@@ -120,6 +123,11 @@ Route::middleware([ApiAuthMiddleware::class])
 
     Route::prefix('checklist-item-result')->name('checklist-item-result.')->group(function () {
       Route::post('/record', [CheckItemsResultController::class, 'recordResult'])
+        ->name('recordResult');
+    });
+
+    Route::prefix('chemical-sds-result')->name('chemical-sds-result.')->group(function () {
+      Route::post('/record', [PerformSDSMonitoringController::class, 'recordResult'])
         ->name('recordResult');
     });
 
@@ -207,7 +215,7 @@ Route::middleware([ApiAuthMiddleware::class])
     });
 
     Route::prefix('checklists')->name('checklists.')->group(function () {
-      Route::get('/', [ChecklistsController::class, 'getAllChecklists'])
+      Route::get('/', [ChecklistsController::class, 'getAllChecklistsWithDueAssets'])
         ->name('index');
       Route::post('/add', [ChecklistsController::class, 'store'])
         ->name('add');
@@ -215,5 +223,7 @@ Route::middleware([ApiAuthMiddleware::class])
         ->name('delete');
       Route::patch('/{id}/update', [ChecklistsController::class, 'update'])
         ->name('update');
+      Route::patch('/bulk-update', [ChecklistsController::class, 'bulkUpdate'])
+        ->name('bulkUpdate');
     });
   });

@@ -10,24 +10,65 @@ use App\Models\Checklist;
 use Illuminate\Validation\Rule;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use App\Support\CacheKeys;
+use App\Services\AssetsService;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\DB;
+use App\Repositories\ChecklistsRepository;
+use App\Services\BulkUpserter;
 
 class ChecklistsController extends Controller
 {
-  public function index(Request $request)
+  public function viewChecklistItems(Request $request)
   {
-    $checklists = Checklist::query()
-      ->with('checklistItems.item')
-      ->get()
-      ->keyBy('id');
+    $search = $request->input('search', '');
+    $perPage = $request->input('perPage', 100);
+    $totalEntries = Checklist::count();
+
+    $checklists = (new ChecklistsRepository())->getChecklistsQuery($search)
+      ->paginate($perPage)
+      ->withQueryString();
 
     if ($request->wantsJson()) {
       return response()->json([
         'checklist' => $checklists,
+        'search' => $search,
+        'perPage' => $perPage,
+        'totalEntries' => $totalEntries,
+      ]);
+    }
+
+    return Inertia::render('ChecklistItemList', [
+      'checklist' => $checklists,
+      'search' => $search,
+      'perPage' => $perPage,
+      'totalEntries' => $totalEntries,
+    ]);
+  }
+
+  public function index(Request $request)
+  {
+    $search = $request->input('search', '');
+    $perPage = $request->input('perPage', 100);
+    $totalEntries = Checklist::count();
+
+    $checklists = (new ChecklistsRepository())->getChecklistsQuery($search)
+      ->paginate($perPage)
+      ->withQueryString();
+
+    if ($request->wantsJson()) {
+      return response()->json([
+        'checklist' => $checklists,
+        'search' => $search,
+        'perPage' => $perPage,
+        'totalEntries' => $totalEntries,
       ]);
     }
 
     return Inertia::render('ChecklistList', [
       'checklist' => $checklists,
+      'search' => $search,
+      'perPage' => $perPage,
+      'totalEntries' => $totalEntries,
     ]);
   }
 
@@ -50,6 +91,41 @@ class ChecklistsController extends Controller
         'The name provided already exists.',
       ],
     );
+  }
+
+  public function bulkUpdate(Request $request)
+  {
+    $rows = $request->all();
+    $user = session('emp_data');
+
+    $columnRules = [
+      'name' => fn($id) => [
+        'required',
+        'string',
+        Rule::unique('checklists', 'name')
+          ->ignore(is_numeric($id) ? $id : null),
+      ],
+      'description' => 'nullable',
+      'instruction' => 'nullable',
+    ];
+
+    $bulkUpdater = new BulkUpserter(new Checklist(), $columnRules, [], []);
+
+    $result = $bulkUpdater->update($rows, $user['emp_id'] ?? null);
+
+    if (!empty($result['errors'])) {
+      return response()->json([
+        'status' => 'error',
+        'message' => 'You have ' . count($result['errors']) . ' error/s',
+        'data' => $result['errors']
+      ], 422);
+    }
+
+    return response()->json([
+      'status' => 'ok',
+      'message' => 'Updated successfully',
+      'updated' => $result['updated']
+    ]);
   }
 
   public function store(Request $request)
@@ -115,17 +191,44 @@ class ChecklistsController extends Controller
     }
   }
 
-  public function getAllChecklists(Request $request)
+  public function getAllChecklistsWithDueAssets(Request $request)
   {
+    $assetsService = new AssetsService();
 
-    return Cache::remember(CacheKeys::checklistsAll(), CacheKeys::defaultCacheDuration(), function () {
-      $checklists = Checklist::select('id', 'name')
+    return Cache::remember(CacheKeys::checklistsAll(), CacheKeys::defaultCacheDuration(), function () use ($assetsService) {
+      $checklists = Checklist::select('id', 'name', 'instruction')
         ->get()
-        ->keyBy(fn($item) => (string)$item->id); // keyed by ID as strings
+        ->keyBy(fn($item) => (string)$item->id);
+
+      $assetsQuery = $assetsService->getDueAssetsQuery();
+
+      // Log::info("query get" . json_encode($assetsQuery->get()));
+
+      $assetStats = DB::table(DB::raw("({$assetsQuery->toSql()}) as sub"))
+        ->mergeBindings($assetsQuery->getQuery())
+        ->select(
+          'sub.checklist_id',
+          DB::raw('COUNT(DISTINCT sub.id) AS total_assets_count'),
+          DB::raw('COUNT(DISTINCT CASE WHEN sub.due_items > 0 THEN sub.id END) AS assets_with_due'),
+          DB::raw('COUNT(DISTINCT CASE WHEN sub.done_items > 0 THEN sub.id END) AS assets_with_done')
+        )
+        ->groupBy('sub.checklist_id')
+        ->get()
+        ->keyBy('checklist_id');
+
+      $checklists->transform(function ($checklist) use ($assetStats) {
+        $stats = $assetStats->get($checklist->id);
+
+        $checklist->total_assets_with_due  = $stats->assets_with_due ?? 0;
+        $checklist->total_assets_with_done = $stats->assets_with_done ?? 0;
+        $checklist->total_assets_count     = $stats->total_assets_count ?? 0;
+
+        return $checklist;
+      });
 
       return response()->json([
-        'checklistArray' => $checklists->values(), // numeric array for iteration
-        'checklistMap'   => $checklists,          // keyed object for fast lookup
+        'checklistArray' => $checklists->values(),
+        'checklistMap'   => $checklists,
       ]);
     });
   }

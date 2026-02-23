@@ -11,6 +11,7 @@ class Checklist extends Model
   protected $fillable = [
     'name',
     'description',
+    'instruction'
   ];
 
   public function checklistItems()
