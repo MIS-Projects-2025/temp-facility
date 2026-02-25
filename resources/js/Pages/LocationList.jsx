@@ -123,7 +123,7 @@ function LocationList() {
 		getChanges,
 		changes,
 	} = useEditableTable(serverLocations.data || [], columns, {
-		isMultipleSelection: true,
+		isMultipleSelection: false,
 	});
 
 	// const handleAddNewLocation = () => {
@@ -201,14 +201,14 @@ function LocationList() {
 				>
 					Reset
 				</button>
-				<button
+				{/* <button
 					type="button"
 					className="btn btn-error btn-ghost btn-square"
 					disabled={Object.keys(table.getState().rowSelection).length === 0}
 					onClick={() => deleteModalRef.current.open()}
 				>
 					<MdOutlineDelete className="w-full h-full" />
-				</button>
+				</button> */}
 			</div>
 
 			<Pagination

@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\ChemicalsController;
 use App\Http\Controllers\ChemicalSDSMonitoringInstanceController;
+use App\Http\Controllers\RestroomMonitoringInstanceController;
 use App\Http\Controllers\DemoController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\General\AdminController;
@@ -17,6 +18,7 @@ use App\Http\Controllers\AssetsController;
 use App\Http\Controllers\ChecklistAssetsController;
 use App\Http\Controllers\PerformChecklistController;
 use App\Http\Controllers\PerformSDSMonitoringController;
+use App\Http\Controllers\PerformRestroomMonitoringController;
 use App\Http\Controllers\ChecklistInstanceController;
 use App\Http\Controllers\AssetPmSchedulesController;
 use App\Http\Controllers\HazardousWasteTurnOverLogSheetController;
@@ -89,6 +91,12 @@ Route::prefix('chemicals')->name('chemicals.')->group(
 Route::prefix('chemicals-sds-instances')->name('chemicals-sds-instances.')->group(
     function () {
         Route::get("/", [ChemicalSDSMonitoringInstanceController::class, 'index'])->name('index');
+    }
+);
+
+Route::prefix('restroom-monitoring-instances')->name('restroom-monitoring-instances.')->group(
+    function () {
+        Route::get("/", [RestroomMonitoringInstanceController::class, 'index'])->name('index');
     }
 );
 
@@ -180,8 +188,10 @@ Route::prefix('perform')->name('perform.')->group(function () {
     Route::prefix('sds-monitoring')->name('sds-monitoring.')->group(function () {
         Route::get('/', [PerformSDSMonitoringController::class, 'index'])->name('index');
     });
+    Route::prefix('restroom-monitoring')->name('restroom-monitoring.')->group(function () {
+        Route::get('/', [PerformRestroomMonitoringController::class, 'index'])->name('index');
+    });
 });
-
 
 Route::prefix('checklist-instance')->name('checklist-instance.')->group(
     function () {

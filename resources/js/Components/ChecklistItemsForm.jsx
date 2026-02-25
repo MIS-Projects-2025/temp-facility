@@ -10,14 +10,14 @@ import { TbAlertCircle } from "react-icons/tb";
 
 export default function ChecklistItemsForm({
 	assetId,
-	checklistId,
+	checklist,
 	items,
 	isItemsLoading,
 	onValid = () => {},
 	onAnyFilled = () => {},
 	onSubmit: onSubmitProp,
 }) {
-	console.log("🚀 ~ ChecklistItemsForm ~ checklistId:", checklistId);
+	console.log("🚀 ~ ChecklistItemsForm ~ checklist:", checklist);
 	console.log("🚀 ~ ChecklistItemsForm ~ assetId:", assetId);
 	console.log("🚀 ~ ChecklistItemsForm ~ items:", items);
 	const { mutate, isLoading, errorMessage } = useMutation();
@@ -60,7 +60,7 @@ export default function ChecklistItemsForm({
 			await mutate(route("api.checklist-item-result.recordResult"), {
 				body: {
 					asset_id: assetId,
-					checklist_id: checklistId,
+					checklist_id: checklist?.id,
 					notes: data.notes,
 					items: data.items,
 				},
@@ -130,7 +130,12 @@ export default function ChecklistItemsForm({
 						const checkedAt = items[index].checked_at;
 						const createdBy = items[index].created_by;
 						const verifiedBy = items[index].verified_by;
-						const isDue = items[index].is_due;
+						const hasNoSchedule = Boolean(items[index].is_no_schedule);
+						console.log(
+							"🚀 ~ ChecklistItemsForm ~ hasNoSchedule:",
+							hasNoSchedule,
+						);
+						const isDue = items[index].is_due && !hasNoSchedule;
 						const isVerified = Boolean(items[index].verified_by);
 
 						return (
@@ -141,8 +146,8 @@ export default function ChecklistItemsForm({
 								key={field.id}
 							>
 								<label className="flex-2">
+									<span className="mr-1 opacity-50">{scheduleName} | </span>
 									<span>{name}</span>
-									<span className="ml-1 opacity-50">({scheduleName})</span>
 								</label>
 
 								<div className="flex-1">
@@ -176,10 +181,12 @@ export default function ChecklistItemsForm({
 									</div>
 
 									<div className="text-xs">
-										{isDue ? (
-											<span className="text-yellow-600">due</span>
-										) : (
-											<FaCheckCircle size={8} className="text-green-600" />
+										{!!isDue && <span className="text-yellow-600">due</span>}
+										{!isDue && !!hasNoSchedule && (
+											<span className="opacity-50">no schedule</span>
+										)}
+										{!isDue && !hasNoSchedule && (
+											<FaCheckCircle className="text-green-600" />
 										)}
 									</div>
 
@@ -204,6 +211,13 @@ export default function ChecklistItemsForm({
 					})}
 				</div>
 			</div>
+
+			{checklist?.instruction && (
+				<div>
+					<div className="font-semibold">Instruction</div>
+					<div className="mt-2">{checklist?.instruction}</div>
+				</div>
+			)}
 
 			<div className="flex flex-col w-full">
 				<div className="font-semibold">Remarks</div>

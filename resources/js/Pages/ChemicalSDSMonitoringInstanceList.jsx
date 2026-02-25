@@ -196,7 +196,7 @@ function ChemicalSDSMonitoringInstanceList() {
 						({formatFriendlyDate(selectedInstance?.created_at, true)})
 					</div>
 				</div>
-				<div className="mt-2 overflow-x-auto max-h-160">
+				<div className="mt-2 overflow-x-auto max-h-100">
 					<table className="border border-base-content/10 table table-zebra w-full divide-y">
 						<thead className="">
 							<tr>

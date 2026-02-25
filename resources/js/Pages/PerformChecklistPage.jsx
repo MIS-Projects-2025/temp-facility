@@ -296,7 +296,7 @@ const PerformChecklistPage = () => {
 					checklistItems.length > 0 && (
 						<ChecklistItemsForm
 							assetId={selectedAssets[0]?.id}
-							checklistId={selectedChecklist?.id}
+							checklist={selectedChecklist}
 							items={checklistItems}
 							isItemsLoading={isLoadingChecklistItems}
 							// onValid={setIsFormFilled}

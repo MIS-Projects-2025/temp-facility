@@ -150,9 +150,14 @@ class ChecklistAssetsController extends Controller
       ],
     ];
 
+    $rows = array_map(function ($row) use ($user) {
+      $row['modified_by'] = $user['emp_id'] ?? null;
+      return $row;
+    }, $rows);
+
     $bulkUpdater = new BulkUpserter(new ChecklistAssets(), $columnRules, [], []);
 
-    $result = $bulkUpdater->update($rows, $user['emp_id'] ?? null);
+    $result = $bulkUpdater->update($rows ?? null);
 
     if (!empty($result['errors'])) {
       return response()->json([

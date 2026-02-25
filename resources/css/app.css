@@ -25,6 +25,10 @@
   --color-base-content: #d6d6d6;
   --color-base-content-dim: #d6d6d630;
 
+  --color-ok: #4caf50;
+  --color-warning: #ff9800;
+  --color-danger: #e53935;
+
   --color-f1color: #FF6A83;
   --color-f1color-15: #ff766a;
   --color-f1color-30: #ff9b6a;

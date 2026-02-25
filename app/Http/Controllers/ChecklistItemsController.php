@@ -111,34 +111,16 @@ class ChecklistItemsController extends Controller
         'ci.criteria',
         's.schedule_name',
         'cir.checked_at',
-        DB::raw("
-                CASE
-                    -- Daily interval
-                    WHEN " . DueScheduleQuery::intervalDay . "
-                        THEN 1
-                    -- Weekly interval
-                    WHEN " . DueScheduleQuery::intervalWeek . "
-                        THEN 1
-                    -- Monthly interval
-                    WHEN " . DueScheduleQuery::intervalMonth . "
-                        THEN 1
-                    -- Hourly interval
-                    WHEN " . DueScheduleQuery::intervalHour . "
-                        THEN 1
-                    -- Daily with specific day_times
-                    WHEN " . DueScheduleQuery::dailySchedule . "
-                        THEN 1
-                    ELSE 0
-                END as is_due
-            ")
+        DB::raw("s.id IS NULL as is_no_schedule"),
       ])
+      ->addSelect(DueScheduleQuery::dueRaw())
       ->join('check_items as i', 'ci.item_id', '=', 'i.id')
       ->join('checklist_assets as ca', function ($join) use ($assetId) {
         $join->on('ca.checklist_id', '=', 'ci.checklist_id')
           ->where('ca.asset_id', $assetId);
       })
-      ->join('entity_checklist_item_schedules as ecs', 'ecs.checklist_item_id', '=', 'ci.id')
-      ->join('schedules as s', 's.id', '=', 'ecs.schedule_id')
+      ->leftjoin('entity_checklist_item_schedules as ecs', 'ecs.checklist_item_id', '=', 'ci.id')
+      ->leftjoin('schedules as s', 's.id', '=', 'ecs.schedule_id')
       ->leftJoinSub($latestResults, 'latest', function ($join) {
         $join->on('latest.checklist_item_id', '=', 'ci.id');
       })
@@ -149,7 +131,8 @@ class ChecklistItemsController extends Controller
       })
       ->leftJoin('checklist_instances as cs', 'cs.id', '=', 'cir.checklist_instance_id')
       ->where('ci.checklist_id', $checklistId)
-      ->orderByDesc('is_due');
+      ->orderBy('s.schedule_name')
+      ->orderBy('i.name');
 
     $results = $query->get();
 

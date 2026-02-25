@@ -1,7 +1,6 @@
 import CancellableActionButton from "@/Components/CancellableActionButton";
 import SmartCalendarContainer from "@/Components/DatePicker";
 import Modal from "@/Components/Modal";
-import MultiSelectSearchableDropdown from "@/Components/MultiSelectSearchableDropdown";
 import Pagination from "@/Components/Pagination";
 import { createClickableCell } from "@/Components/tanStackTable/ClickableCell";
 import TanstackTable from "@/Components/tanStackTable/TanstackTable";
@@ -15,32 +14,62 @@ import { router, usePage } from "@inertiajs/react";
 import clsx from "clsx";
 import React, { useEffect, useRef, useState } from "react";
 import toast from "react-hot-toast";
-import { MdOutlinePending, MdVerified } from "react-icons/md";
+import { MdVerified } from "react-icons/md";
 
 const reviewResultsModalID = "checklist-instance-results-modal";
-const checklistModalID = "checklist-instance-list-checklist-modal";
 const maxItem = 30; // all
 
-function ChecklistInstanceList() {
+function RestroomMonitoringInstanceList() {
 	const {
-		checklistInstance: serverChecklistInstance,
+		restroomMonitoringInstance: serverRestroomMonitoringInstanceInstance,
 		verified: serverVerified,
 		createdAtStart: serverCreatedAtStart,
 		createdAtEnd: serverCreatedAtEnd,
-		checklistIds: serverChecklistId,
-		checklists: serverChecklists,
 		perPage: serverPerPage,
 		totalEntries,
 	} = usePage().props;
+	const [selectedInstance, setSelectedInstance] = useState([]);
+	const [filterVerified, setFilterVerified] = useState(serverVerified);
+	const [filterCreateDateStart, setFilterCreateDateStart] =
+		useState(serverCreatedAtStart);
+	const [filterCreateDateEnd, setFilterCreateDateEnd] =
+		useState(serverCreatedAtEnd);
 
-	console.log(
-		"🚀 ~ ChecklistInstanceList ~ serverChecklistId:",
-		serverChecklistId,
-		console.log(
-			"🚀 ~ ChecklistInstanceList ~ serverChecklists:",
-			serverChecklists,
-		),
-	);
+	const isMounted = useRef(false);
+
+	useEffect(() => {
+		if (!isMounted.current) {
+			isMounted.current = true;
+			return;
+		}
+
+		router.reload({
+			data: {
+				verified: filterVerified,
+				createdAtStart: formatDateTime(filterCreateDateStart),
+				createdAtEnd: formatDateTime(filterCreateDateEnd),
+				perPage: serverPerPage,
+			},
+			preserveState: true,
+			preserveScroll: true,
+		});
+	}, [filterVerified, filterCreateDateStart, filterCreateDateEnd]);
+
+	const refresh = () => {
+		router.reload({
+			data: {
+				createdAtStart: formatDateTime(filterCreateDateStart),
+				createdAtEnd: formatDateTime(filterCreateDateEnd),
+				perPage: maxItem,
+			},
+			preserveState: true,
+			preserveScroll: true,
+		});
+	};
+
+	function handleEditedItemClick(row, value, column) {
+		setSelectedInstance(row.original);
+	}
 
 	const {
 		mutate,
@@ -50,88 +79,8 @@ function ChecklistInstanceList() {
 		cancel: mutateCancel,
 	} = useMutation();
 
-	const [selectedInstance, setSelectedInstance] = useState([]);
-	const [selectedCell, setSelectedCell] = useState(null);
-	const [selectedChecklist, setSelectedChecklist] = React.useState(
-		serverChecklistId?.map((checklistId) => Number(checklistId)),
-	);
-
-	const defaultChecklistNames =
-		serverChecklists
-			?.filter((checklist) => selectedChecklist.includes(checklist.id))
-			.map((checklist) => checklist.name) || [];
-
-	console.log(
-		"🚀 ~ handleEditedItemClick ~ defaultChecklistNames:",
-		defaultChecklistNames,
-	);
-
-	const [filterVerified, setFilterVerified] = useState(serverVerified || false);
-	const [filterCreateDateStart, setFilterCreateDateStart] =
-		useState(serverCreatedAtStart);
-	const [filterCreateDateEnd, setFilterCreateDateEnd] =
-		useState(serverCreatedAtEnd);
-
-	console.log(
-		"🚀 ~ ChecklistInstanceList ~ selectedChecklist:",
-		selectedChecklist,
-	);
-
-	const refresh = () => {
-		router.reload({
-			data: {
-				verified: filterVerified,
-				createdAtStart: formatDateTime(filterCreateDateStart),
-				createdAtEnd: formatDateTime(filterCreateDateEnd),
-				checklistIds: selectedChecklist.join(","),
-				perPage: maxItem,
-			},
-			preserveState: true,
-			preserveScroll: true,
-		});
-	};
-
-	function handleEditedItemClick(row, value, column) {
-		console.log("🚀 ~ handleEditedItemClick ~ row:", row);
-		// const rootKey = column?.columnDef?.accessorKey?.split(".")[0];
-		// setSelectedCell({ rootKey, row, value, column });
-		// setSelectedEditItem([value]);
-		setSelectedInstance(row.original);
-	}
-
 	const columns = React.useMemo(
 		() => [
-			{
-				header: "Checklist",
-				columns: [
-					{
-						header: "Checklist",
-						accessorKey: "checklist",
-						cell: ({ row }) => {
-							console.log("🚀 ~ ChecklistInstanceList ~ row:", row);
-							const checklist = row.original.checklist;
-							const isVerified = row.original.verified_at !== null;
-							return (
-								<div className="justify-center flex flex-col items-left">
-									<div className="flex gap-1">
-										{isVerified ? (
-											<MdVerified className="w-4 h-4 text-green-500" />
-										) : (
-											<MdOutlinePending className="w-4 h-4 text-yellow-500" />
-										)}
-										<span>{checklist.name}</span>
-									</div>
-									<div className="text-xs opacity-75 flex gap-1">
-										<span>{checklist.form_control_no}</span>
-										<span></span>
-									</div>
-								</div>
-							);
-						},
-						size: 400,
-					},
-				],
-			},
 			{
 				header: "Results (click for more details)",
 				accessorFn: (row) => {
@@ -148,7 +97,7 @@ function ChecklistInstanceList() {
 			},
 			{
 				header: "Verified",
-				accessorKey: "verified_at", // or just use row.original
+				accessorKey: "verified_at",
 				cell: ({ row }) => {
 					const { verified_at, verified_by, verifier } = row.original;
 					const notVerified = !verified_at && !verified_by;
@@ -192,7 +141,7 @@ function ChecklistInstanceList() {
 			},
 			{
 				header: "Performed",
-				accessorKey: "created_at", // or row.original
+				accessorKey: "created_at",
 				cell: ({ row }) => {
 					const { created_at, created_by, creator } = row.original;
 					console.log("🚀 ~ ChecklistInstanceList ~ created_at:", created_at);
@@ -233,91 +182,12 @@ function ChecklistInstanceList() {
 	);
 
 	const { table } = useEditableTable(
-		serverChecklistInstance.data || [],
+		serverRestroomMonitoringInstanceInstance.data || [],
 		columns,
 		{
 			isMultipleSelection: true,
 		},
 	);
-
-	const handleVerify = async (
-		instances = Object.keys(table.getState().rowSelection),
-	) => {
-		if (instances.length === 0) {
-			alert("No selected rows to verify.");
-			return;
-		}
-
-		// if (!confirm("Are you sure you want to discard all changes?")) return;
-		try {
-			await mutate(route("api.checklist-instance.verify"), {
-				method: "PATCH",
-				body: instances,
-			});
-			refresh();
-		} catch (error) {
-			toast.error(error?.message);
-			console.error(error);
-		}
-	};
-
-	const preprocessResults = (results) => {
-		if (!results || results.length === 0) return [];
-
-		const grouped = [];
-		let currentAssetCode = null;
-		let spanCount = 0;
-
-		// Count consecutive repeats
-		results.forEach((r, i) => {
-			if (r.asset?.code === currentAssetCode) {
-				spanCount++;
-			} else {
-				// Assign rowSpan to previous group
-				if (spanCount > 0) {
-					grouped[grouped.length - spanCount].rowSpan = spanCount;
-				}
-				currentAssetCode = r.asset?.code;
-				spanCount = 1;
-			}
-			grouped.push({ ...r, rowSpan: 0 }); // temp rowSpan
-		});
-
-		// Assign rowSpan to last group
-		if (spanCount > 0) {
-			grouped[grouped.length - spanCount].rowSpan = spanCount;
-		}
-
-		return grouped;
-	};
-
-	const processed = preprocessResults(selectedInstance.results);
-
-	const isMounted = useRef(false);
-
-	useEffect(() => {
-		if (!isMounted.current) {
-			isMounted.current = true;
-			return;
-		}
-
-		router.reload({
-			data: {
-				verified: filterVerified,
-				createdAtStart: formatDateTime(filterCreateDateStart),
-				createdAtEnd: formatDateTime(filterCreateDateEnd),
-				checklistIds: selectedChecklist.join(","),
-				perPage: serverPerPage,
-			},
-			preserveState: true,
-			preserveScroll: true,
-		});
-	}, [
-		filterVerified,
-		filterCreateDateStart,
-		filterCreateDateEnd,
-		selectedChecklist,
-	]);
 
 	const goToPage = (page) => {
 		router.reload({
@@ -325,7 +195,7 @@ function ChecklistInstanceList() {
 				perPage: maxItem,
 				page,
 			},
-			preserveState: true,
+			preserveState: false,
 			preserveScroll: true,
 		});
 	};
@@ -336,9 +206,31 @@ function ChecklistInstanceList() {
 		setFilterCreateDateEnd(end);
 	};
 
+	const handleVerify = async (
+		instances = Object.keys(table.getState().rowSelection),
+	) => {
+		if (instances.length === 0) {
+			alert("No selected rows to verify.");
+			return;
+		}
+
+		try {
+			await mutate(route("api.restroom-monitoring-instance.verify"), {
+				method: "PATCH",
+				body: instances,
+			});
+
+			toast.success("Restroom Monitoring Checklist verified successfully!");
+			refresh();
+		} catch (error) {
+			toast.error(error?.message);
+			console.error(error);
+		}
+	};
+
 	return (
 		<div>
-			<h1 className="text-lg font-semibold">Performed Checklist List</h1>
+			<h1 className="text-lg font-semibold">Restroom Monitoring List</h1>
 			<div className="flex">
 				<fieldset className="fieldset bg-base-100 border-base-300 rounded-box w-64 border p-4">
 					<legend className="fieldset-legend">Filter Verified</legend>
@@ -356,28 +248,6 @@ function ChecklistInstanceList() {
 				</fieldset>
 
 				<div className="flex flex-col w-full">
-					<MultiSelectSearchableDropdown
-						modalId={checklistModalID}
-						options={
-							serverChecklists?.map((checklist) => ({
-								id: checklist.id,
-								value: checklist.name,
-								label: checklist.form_control_no,
-								original: checklist,
-							})) || []
-						}
-						onChange={(value) => {
-							setSelectedChecklist(value);
-						}}
-						returnKey="id"
-						defaultSelectedOptions={defaultChecklistNames}
-						disableSelectedContainer
-						disableTooltip
-						itemName="Checklist List"
-						prompt="Filter Checklist"
-						contentClassName="w-full h-50"
-						buttonSelectorClassName="min-h-8 w-full h-auto btn-soft btn-primary text-left"
-					/>
 					<div>Date performed filter</div>
 
 					<SmartCalendarContainer
@@ -387,7 +257,7 @@ function ChecklistInstanceList() {
 						endDate={filterCreateDateEnd}
 						props={{
 							portalId: "root-portal",
-							className: "w-120 input",
+							className: "w-120 input z-50",
 							swapRange: true,
 							selectsRange: true,
 							isClearable: true,
@@ -411,13 +281,13 @@ function ChecklistInstanceList() {
 			</div>
 
 			<Pagination
-				links={serverChecklistInstance?.links}
-				currentPage={serverChecklistInstance?.current_page}
+				links={serverRestroomMonitoringInstanceInstance?.links}
+				currentPage={serverRestroomMonitoringInstanceInstance?.current_page}
 				goToPage={goToPage}
-				filteredTotal={serverChecklistInstance?.total}
+				filteredTotal={serverRestroomMonitoringInstanceInstance?.total}
 				overallTotal={totalEntries}
-				start={serverChecklistInstance?.from}
-				end={serverChecklistInstance?.to}
+				start={serverRestroomMonitoringInstanceInstance?.from}
+				end={serverRestroomMonitoringInstanceInstance?.to}
 			/>
 
 			<TanstackTable table={table} />
@@ -428,13 +298,6 @@ function ChecklistInstanceList() {
 				className="w-11/12 max-w-6xl"
 			>
 				<div className="flex justify-between items-center">
-					<div>
-						{selectedInstance?.checklist?.name} -{" "}
-						<span className="text-xs">
-							{selectedInstance?.checklist?.form_control_no}
-						</span>
-					</div>
-
 					<div className="leading-3 text-xs opacity-75">
 						created{" "}
 						<span className="font-semibold">
@@ -447,55 +310,24 @@ function ChecklistInstanceList() {
 					<table className="border border-base-content/10 table table-zebra w-full divide-y">
 						<thead className="">
 							<tr>
-								<th className="px-4 py-2 text-left text-sm">Asset Code</th>
-								<th className="px-4 py-2 text-left text-sm">Item Name</th>
-								<th className="px-4 py-2 text-left text-sm">Criteria</th>
+								<th className="px-4 py-2 text-left text-sm">Chemical Name</th>
 								<th className="px-4 py-2 text-left text-sm">Status</th>
 								<th className="px-4 py-2 text-left text-sm">Remarks</th>
 							</tr>
 						</thead>
 						<tbody className="divide-y">
-							{processed?.length > 0 &&
-								processed.map((r) => (
-									<tr key={r.id}>
-										{r.rowSpan > 0 && (
-											<td className="px-4 py-2 text-sm" rowSpan={r.rowSpan}>
-												<div>
-													<span className={r.asset?.code ? "" : "opacity-50"}>
-														{r.asset?.code || "N/A"}
-													</span>
-													<span
-														className={`pl-1 text-xs ${r.asset?.location?.location_name ? "" : "opacity-50"}`}
-													>
-														@ {r.asset?.location?.location_name || "N/A"}
-													</span>
-												</div>
-											</td>
-										)}
-										<td
-											className={`px-4 py-2 text-sm ${r.item?.item?.name ? "" : "opacity-50"}`}
-										>
-											{r.item?.item?.name || "N/A"}
+							{selectedInstance?.results?.length > 0 &&
+								selectedInstance?.results.map((r) => (
+									<tr key={r.id} className="">
+										<td className={clsx("px-4 py-2 text-sm")}>
+											{r?.restroom?.restroom_name || "N/A"}
 										</td>
-										<td
-											className={`px-4 py-2 text-sm ${r.item?.criteria ? "" : "opacity-50"}`}
-										>
-											{r.item?.criteria || "N/A"}
-										</td>
-										<td
-											className={`px-4 py-2 text-sm ${r.item_status ? "" : "opacity-50"}`}
-										>
-											{r.item_status || "N/A"}
-										</td>
-										<td
-											className={`px-4 py-2 text-sm ${r.remarks ? "" : "opacity-50"}`}
-										>
-											{r.remarks || "N/A"}
-										</td>
+										<td className="px-4 py-2 text-sm ">{r.status || "N/A"}</td>
+										<td className="px-4 py-2 text-sm ">{r.remarks || "N/A"}</td>
 									</tr>
 								))}
 
-							{processed?.length === 0 && (
+							{selectedInstance?.results?.length === 0 && (
 								<tr>
 									<td colSpan="5" className="px-4 py-2 text-sm text-center">
 										No items
@@ -531,4 +363,4 @@ function ChecklistInstanceList() {
 	);
 }
 
-export default ChecklistInstanceList;
+export default RestroomMonitoringInstanceList;

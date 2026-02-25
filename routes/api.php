@@ -10,6 +10,7 @@ use App\Http\Controllers\ChecklistItemsController;
 use App\Http\Controllers\CheckItemsController;
 use App\Http\Controllers\AssetsController;
 use App\Http\Controllers\PerformSDSMonitoringController;
+use App\Http\Controllers\PerformRestroomMonitoringController;
 use App\Http\Controllers\ChecklistAssetsController;
 use App\Http\Controllers\AssetPmSchedulesController;
 use App\Http\Controllers\ChecklistItemSchedulesController;
@@ -19,6 +20,7 @@ use App\Http\Controllers\ChecklistInstanceController;
 use App\Http\Controllers\GlobalPmSchedulesController;
 use App\Http\Controllers\GlobalPmController;
 use App\Http\Controllers\ChecklistsController;
+use App\Http\Controllers\RestroomMonitoringInstanceController;
 use App\Http\Controllers\HazardousWasteTurnOverLogSheetController;
 
 Route::middleware([ApiAuthMiddleware::class])
@@ -131,6 +133,11 @@ Route::middleware([ApiAuthMiddleware::class])
         ->name('recordResult');
     });
 
+    Route::prefix('restroom-monitoring-result')->name('restroom-monitoring-result.')->group(function () {
+      Route::post('/record', [PerformRestroomMonitoringController::class, 'recordResult'])
+        ->name('recordResult');
+    });
+
     Route::prefix('checklist-assets')->name('checklist-assets.')->group(function () {
       Route::get('/', [ChecklistAssetsController::class, 'index'])
         ->name('index');
@@ -152,6 +159,11 @@ Route::middleware([ApiAuthMiddleware::class])
 
     Route::prefix('checklist-instance')->name('checklist-instance.')->group(function () {
       Route::patch('/verify', [ChecklistInstanceController::class, 'verify'])
+        ->name('verify');
+    });
+
+    Route::prefix('restroom-monitoring-instance')->name('restroom-monitoring-instance.')->group(function () {
+      Route::patch('/verify', [RestroomMonitoringInstanceController::class, 'verify'])
         ->name('verify');
     });
 

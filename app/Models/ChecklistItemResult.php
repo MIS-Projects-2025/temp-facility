@@ -30,7 +30,7 @@ class ChecklistItemResult extends Model
     return $this->belongsTo(ChecklistItem::class, 'checklist_item_id');
   }
 
-  public function verifier()
+  public function checkedBy()
   {
     return $this->belongsTo(Employee::class, 'checked_by', 'EMPLOYID');
   }

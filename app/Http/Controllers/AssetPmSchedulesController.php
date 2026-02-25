@@ -13,6 +13,7 @@ use App\Traits\MassDeletesByIds;
 use Exception;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\DB;
+use App\Services\BulkUpserter;
 
 class AssetPmSchedulesController extends Controller
 {
@@ -122,9 +123,14 @@ class AssetPmSchedulesController extends Controller
       ],
     ];
 
+    $rows = array_map(function ($row) use ($user) {
+      $row['modified_by'] = $user['emp_id'] ?? null;
+      return $row;
+    }, $rows);
+
     $bulkUpdater = new BulkUpserter(new AssetPmSchedule(), $columnRules, [], []);
 
-    $result = $bulkUpdater->update($rows, $user['emp_id'] ?? null);
+    $result = $bulkUpdater->update($rows ?? null);
 
     if (!empty($result['errors'])) {
       return response()->json([

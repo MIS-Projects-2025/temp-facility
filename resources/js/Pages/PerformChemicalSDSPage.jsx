@@ -10,7 +10,8 @@ const PerformChemicalSDSPage = () => {
 	};
 
 	return (
-		<div className="flex w-full h-[calc(100vh-100px)] md:flex-row flex-col gap-4 relative p-1 shadow-lg">
+		<div className="flex w-full h-[calc(100vh-100px)] flex-col gap-4 relative p-1 shadow-lg">
+			<h1 className="font-bold">Perform Chemical SDS Today</h1>
 			<ChemicalSDSForm
 				chemicals={serverChemicals}
 				isLoadingChemicals={false}

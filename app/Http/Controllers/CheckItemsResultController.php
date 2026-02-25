@@ -95,6 +95,7 @@ class CheckItemsResultController extends Controller
     ]);
   }
 
+
   public function getAllCheckItems(Request $request)
   {
     $checklistID = $request->input('checklist_id');

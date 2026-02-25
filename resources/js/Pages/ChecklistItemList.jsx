@@ -1,7 +1,6 @@
 import ChangeReviewModal from "@/Components/ChangeReviewModal";
 import DeleteModal from "@/Components/DeleteModal";
 import MultiSelectSearchableDropdown from "@/Components/MultiSelectSearchableDropdown";
-import CheckBoxColumn from "@/Components/tanStackTable/CheckBoxColumn";
 import { createClickableCell } from "@/Components/tanStackTable/ClickableCell";
 import ReadOnlyColumns from "@/Components/tanStackTable/ReadOnlyColumn";
 import TanstackTable from "@/Components/tanStackTable/TanstackTable";
@@ -9,28 +8,22 @@ import { useEditableTable } from "@/Hooks/useEditableTable";
 import { useFetch } from "@/Hooks/useFetch";
 import { useMutation } from "@/Hooks/useMutation";
 import { useChecklistStore } from "@/Store/checklistStore";
-import getObjectChanges from "@/Utils/getObjectChanges";
 import { router } from "@inertiajs/react";
-import clsx from "clsx";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import toast from "react-hot-toast";
-import { FaCaretDown, FaPen, FaPlus, FaSave, FaTimes } from "react-icons/fa";
-import { FaPencil } from "react-icons/fa6";
-import { GoChecklist } from "react-icons/go";
-import { MdOutlineDelete } from "react-icons/md";
+import { FaCaretDown, FaPlus, FaSave } from "react-icons/fa";
 
 const perPageF3RawPackage = 30;
 const checkItemListModalID = "checklist-item-modal";
 const scheduleModalID = "schedule-modal";
+const saveChangeIDModal = "save_change__checklist_item_modal_id";
 
 const ChecklistItemList = () => {
 	const { data: checklists, isLoading, fetchChecklists } = useChecklistStore();
 
 	const [selectedChecklist, setSelectedChecklist] = React.useState(null);
-	const [originalData, setOriginalData] = useState({});
 	const [selectedEditItem, setSelectedEditItem] = useState([[]]);
 	const [selectedCell, setSelectedCell] = useState(null);
-
 	const [checkItemSearchInput, setCheckItemSearchInput] = useState("");
 
 	useEffect(() => {
@@ -98,7 +91,6 @@ const ChecklistItemList = () => {
 
 	const columns = React.useMemo(
 		() => [
-			CheckBoxColumn,
 			ReadOnlyColumns({
 				accessorKey: "id",
 				header: "ID",
@@ -108,12 +100,10 @@ const ChecklistItemList = () => {
 				accessorKey: "checklist_id",
 				header: "Checklist ID",
 				meta: { hidden: true },
-				// cell: (info) => null,
 			},
 			{
 				accessorKey: "item.name",
 				header: () => "Action/Check Item",
-				// accessorFn: (row) => row.item.name,
 				accessorFn: (row) => row.item?.name ?? null,
 				size: 340,
 				cell: createClickableCell({
@@ -155,10 +145,16 @@ const ChecklistItemList = () => {
 		[],
 	);
 
-	const { table, data, setData, editedRows, setEditedRows } = useEditableTable(
-		checklistItems || [],
-		columns,
-	);
+	const {
+		table,
+		editedRows,
+		handleAddNewRow,
+		handleResetChanges,
+		getChanges,
+		changes,
+	} = useEditableTable(checklistItems || [], columns, {
+		isMultipleSelection: false,
+	});
 
 	const {
 		data: schedules,
@@ -222,9 +218,6 @@ const ChecklistItemList = () => {
 	console.log("🚀 ~ ChecklistList ~ selectedChecklist:", selectedChecklist);
 	const deleteModalRef = useRef(null);
 
-	const [changesToReview, setChangesToReview] = useState([]);
-	const saveChangeIDModal = "save_change__checklist_item_modal_id";
-
 	const saveChanges = async () => {
 		try {
 			await mutate(route("api.checklist-items.bulkUpdate"), {
@@ -243,20 +236,6 @@ const ChecklistItemList = () => {
 			console.error(error);
 		}
 	};
-	const handleResetChanges = () => {
-		if (Object.keys(editedRows).length === 0) {
-			alert("No changes to reset.");
-			return;
-		}
-
-		if (!confirm("Are you sure you want to discard all changes?")) return;
-
-		setEditedRows({});
-		setChangesToReview([]);
-		const originalRows = Object.values(originalData);
-		console.log("🚀 ~ handleResetChanges ~ originalRows:", originalRows);
-		setData(originalRows);
-	};
 
 	React.useEffect(() => {
 		console.log("editedRows", editedRows);
@@ -271,37 +250,19 @@ const ChecklistItemList = () => {
 	}, [checklists]);
 
 	React.useEffect(() => {
-		console.log("🚀 ~ change in c h e c k l i s t i t e m s:", checklistItems);
-		const rows = checklistItems || [];
-		setData(rows);
-
-		const map = {};
-		rows.forEach((row) => {
-			map[row.id] = row;
-		});
-		setOriginalData(map);
-		setEditedRows({});
-	}, [checklistItems]);
-
-	React.useEffect(() => {
 		checklistItemsFetch();
 		return () => {
 			checklistItemsAbort();
 		};
 	}, [selectedChecklist]);
 
-	const handleAddNewChecklist = () => {
-		router.visit(route("checklist-items.create"));
-	};
-
 	const handleSaveClick = () => {
-		const changes = getObjectChanges(editedRows, originalData);
+		const changes = getChanges();
 		if (changes.length === 0) {
 			alert("No changes to save.");
 			return;
 		}
 		document.getElementById(saveChangeIDModal).showModal();
-		setChangesToReview(changes);
 	};
 
 	const commonEditModalConfig = {
@@ -354,7 +315,7 @@ const ChecklistItemList = () => {
 					<button
 						type="button"
 						className="btn btn-primary"
-						onClick={handleAddNewChecklistItem}
+						onClick={() => handleAddNewRow()}
 					>
 						<FaPlus className="mr-2" />
 						Add New Checklist Item
@@ -374,14 +335,6 @@ const ChecklistItemList = () => {
 						onClick={handleResetChanges}
 					>
 						Reset
-					</button>
-					<button
-						type="button"
-						className="btn btn-error btn-ghost btn-square"
-						disabled={Object.keys(table.getState().rowSelection).length === 0}
-						onClick={() => deleteModalRef.current.open()}
-					>
-						<MdOutlineDelete className="w-full h-full" />
 					</button>
 				</div>
 
@@ -431,21 +384,13 @@ const ChecklistItemList = () => {
 						buttonSelectorClassName="w-full h-auto btn-soft btn-primary text-left"
 						singleSelect
 					/>
-					<button
-						type="button"
-						className="btn btn-primary"
-						onClick={handleAddNewChecklist}
-					>
-						<GoChecklist className="w-6 h-6" />
-						Add New Checklist
-					</button>
 				</div>
 
 				<TanstackTable table={table} isTableLoading={isChecklistItemsLoading} />
 
 				<ChangeReviewModal
 					modalID={saveChangeIDModal}
-					changes={changesToReview}
+					changes={changes}
 					onClose={() => document.getElementById(saveChangeIDModal).close()}
 					onSave={saveChanges}
 					isLoading={isMutateLoading}
