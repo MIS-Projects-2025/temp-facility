@@ -443,7 +443,7 @@ const UtilityTrashList = () => {
 			<Modal
 				ref={performChecklistModalRef}
 				id="performUtilityTrashEntryModal"
-				title={`Perform at ${formatTimestamp(performDate)}`}
+				title={`Perform Utility Trash Checklist`}
 				onClose={() => performChecklistModalRef.current?.close()}
 				className="max-w-lg"
 			>

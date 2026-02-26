@@ -62,14 +62,14 @@ const MultiSelectSearchableDropdown = memo(
 			if (!el) return;
 			if (isOpen) el.showPopover?.();
 			else el.hidePopover?.();
-		}, [isOpen]);
+		}, [isOpen, id]);
 
 		useEffect(() => {
 			if (openTrigger === 0) return; // skip initial
 			const el = document.getElementById(popoverId);
 			el?.showPopover?.();
 			// setOpen(true);
-		}, [openTrigger]);
+		}, [openTrigger, popoverId]);
 
 		useEffect(() => {
 			if (controlledSelectedOptions.length > 0) {
@@ -141,8 +141,7 @@ const MultiSelectSearchableDropdown = memo(
 			const count = selectedOptions.length;
 			if (count === 0) return prompt;
 			if (singleSelect || count === 1) return selectedOptions[0];
-			const [first, ...rest] = selectedOptions;
-			return `${first} and ${count - 1} more`;
+			return `${selectedOptions[0]} and ${count - 1} more`;
 		};
 
 		const filteredOptions = useMemo(() => {
@@ -152,7 +151,7 @@ const MultiSelectSearchableDropdown = memo(
 			return options.filter(
 				(option) =>
 					option.value.toLowerCase().includes(search) ||
-					(option.label && option.label.toLowerCase().includes(search)),
+					option.label?.toLowerCase().includes(search),
 			);
 		}, [debouncedSearch, options, onSearchChange]);
 

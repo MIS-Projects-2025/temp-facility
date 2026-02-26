@@ -15,7 +15,6 @@ import { FaPlus, FaSave } from "react-icons/fa";
 import { MdOutlineDelete } from "react-icons/md";
 import SearchInput from "./SearchInput";
 
-const checkItemListModalID = "checklist-item-modal";
 const saveChangeIDModal = "save_change__checklist_item_modal_id";
 const scheduleModalID = "schedule-asset-pm-schedule-modal";
 const assetModalID = "asset-pm-schedule-assets-modal";
@@ -33,7 +32,6 @@ const AssetPmScheduleList = () => {
 		serverAssetPmSchedules,
 	);
 
-	const [selectedChecklist, setSelectedChecklist] = React.useState(null);
 	const [maxItem, setMaxItem] = useState(serverPerPage || 30);
 	const [searchInput, setSearchInput] = useState(serverSearch || "");
 	const [selectedEditItem, setSelectedEditItem] = useState([[]]);
@@ -86,10 +84,7 @@ const AssetPmScheduleList = () => {
 		// auto: false,
 	});
 
-	console.log("🚀 ~ AssetList ~ schedules:", schedules);
-
 	const handleEditedItemClick = React.useCallback((row, value, column) => {
-		console.log("🚀 ~ handleEditedItemClick ~ value:", value);
 		const rootKey = column?.columnDef?.accessorKey?.split(".")[0];
 		setSelectedCell({ rootKey, row, value, column });
 		setSelectedEditItem([value]);
@@ -250,10 +245,6 @@ const AssetPmScheduleList = () => {
 		});
 		setAssetsSearchInput(searchValue);
 	}, []);
-
-	const handleAddNewChecklist = () => {
-		router.visit(route("checklist-items.create"));
-	};
 
 	const handleSaveClick = () => {
 		const computedChanges = getChanges();

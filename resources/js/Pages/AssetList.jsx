@@ -54,7 +54,7 @@ const AssetList = () => {
 		}, 700);
 
 		return () => clearTimeout(timer);
-	}, [searchInput]);
+	}, [searchInput, maxItem]);
 
 	const {
 		mutate,

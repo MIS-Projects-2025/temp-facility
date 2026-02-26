@@ -51,7 +51,6 @@ function ChecklistInstanceList() {
 	} = useMutation();
 
 	const [selectedInstance, setSelectedInstance] = useState([]);
-	const [selectedCell, setSelectedCell] = useState(null);
 	const [selectedChecklist, setSelectedChecklist] = React.useState(
 		serverChecklistId?.map((checklistId) => Number(checklistId)),
 	);
@@ -433,6 +432,12 @@ function ChecklistInstanceList() {
 						<span className="text-xs">
 							{selectedInstance?.checklist?.form_control_no}
 						</span>
+					</div>
+				</div>
+				<div className="flex justify-between items-center">
+					<div>
+						submitted by {selectedInstance?.creator?.FIRSTNAME}{" "}
+						{selectedInstance?.creator?.LASTNAME}
 					</div>
 
 					<div className="leading-3 text-xs opacity-75">
