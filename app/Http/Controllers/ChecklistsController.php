@@ -15,6 +15,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB;
 use App\Repositories\ChecklistsRepository;
 use App\Services\BulkUpserter;
+use App\Services\ChecklistsService;
 
 class ChecklistsController extends Controller
 {
@@ -198,43 +199,11 @@ class ChecklistsController extends Controller
 
   public function getAllChecklistsWithDueAssets(Request $request)
   {
-    $assetsService = new AssetsService();
+    $checklists = (new ChecklistsService())->getAllChecklistsWithDueAssets();
 
-    return Cache::remember(CacheKeys::checklistsAll(), CacheKeys::defaultCacheDuration(), function () use ($assetsService) {
-      $checklists = Checklist::select('id', 'name', 'instruction')
-        ->get()
-        ->keyBy(fn($item) => (string)$item->id);
-
-      $assetsQuery = $assetsService->getDueAssetsQuery();
-
-      // Log::info("query get" . json_encode($assetsQuery->get()));
-
-      $assetStats = DB::table(DB::raw("({$assetsQuery->toSql()}) as sub"))
-        ->mergeBindings($assetsQuery->getQuery())
-        ->select(
-          'sub.checklist_id',
-          DB::raw('COUNT(DISTINCT sub.id) AS total_assets_count'),
-          DB::raw('COUNT(DISTINCT CASE WHEN sub.due_items > 0 THEN sub.id END) AS assets_with_due'),
-          DB::raw('COUNT(DISTINCT CASE WHEN sub.done_items > 0 THEN sub.id END) AS assets_with_done')
-        )
-        ->groupBy('sub.checklist_id')
-        ->get()
-        ->keyBy('checklist_id');
-
-      $checklists->transform(function ($checklist) use ($assetStats) {
-        $stats = $assetStats->get($checklist->id);
-
-        $checklist->total_assets_with_due  = $stats->assets_with_due ?? 0;
-        $checklist->total_assets_with_done = $stats->assets_with_done ?? 0;
-        $checklist->total_assets_count     = $stats->total_assets_count ?? 0;
-
-        return $checklist;
-      });
-
-      return response()->json([
-        'checklistArray' => $checklists->values(),
-        'checklistMap'   => $checklists,
-      ]);
-    });
+    return response()->json([
+      'checklistArray' => $checklists['checklistArray'],
+      'checklistMap' => $checklists['checklistMap'],
+    ]);
   }
 }

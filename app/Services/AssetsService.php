@@ -51,36 +51,4 @@ class AssetsService
 
     return $assetsQuery;
   }
-
-  public function countDues()
-  {
-    $sub = $this->getDueAssetsQuery();
-
-    $collapsed = DB::table(DB::raw("({$sub->toSql()}) as sub"))
-      ->mergeBindings($sub->getQuery())
-      ->select([
-        'sub.id',
-        'sub.code',
-        'sub.location_name',
-        DB::raw('SUM(sub.due_items) as due_items'),
-        DB::raw('SUM(sub.done_items) as done_items'),
-        DB::raw('SUM(sub.overdue_items) as overdue_items'),
-      ])
-      ->groupBy('sub.id', 'sub.code', 'sub.location_name');
-
-    $details = $collapsed->get();
-
-    Log::info("query get" . json_encode($collapsed->get()));
-
-    $summary = [
-      'total_assets'      => $details->count(),
-      'assets_complete'   => $details->filter(fn($a) => $a->due_items == 0 && $a->done_items > 0)->values(),
-      'assets_partial'    => $details->filter(fn($a) => $a->due_items > 0 && $a->done_items > 0)->values(),
-      'assets_not_started' => $details->filter(fn($a) => $a->due_items > 0 && $a->done_items == 0)->values(),
-      'assets_idle'       => $details->filter(fn($a) => $a->due_items == 0 && $a->done_items == 0)->values(),
-      'assets_overdue'    => $details->filter(fn($a) => $a->overdue_items > 0)->values(),
-    ];
-
-    return $summary;
-  }
 }

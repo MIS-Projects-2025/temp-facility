@@ -3,6 +3,7 @@ import MultiSelectSearchableDropdown from "@/Components/MultiSelectSearchableDro
 import Steps from "@/Components/Steps";
 import { useFetch } from "@/Hooks/useFetch";
 import { useChecklistStore } from "@/Store/checklistStore";
+import { router, usePage } from "@inertiajs/react";
 import React, { useEffect, useState } from "react";
 import { AiOutlineExclamationCircle } from "react-icons/ai";
 import { MdDone } from "react-icons/md";
@@ -19,8 +20,10 @@ const checklistModalID = "perform-checklist-checklist-modal";
 const maxItem = -1; // all
 
 const PerformChecklistPage = () => {
-	const { data: checklists, isLoading, fetchChecklists } = useChecklistStore();
-	console.log("🚀 ~ PerformChecklistPage ~ checklists:", checklists);
+	const { checklistsOverview } = usePage().props;
+
+	// const { data: checklistsOverview, isLoading, fetchChecklists } = useChecklistStore();
+	console.log("🚀 ~ PerformChecklistPage ~ checklists:", checklistsOverview);
 
 	const {
 		data: assets,
@@ -48,6 +51,7 @@ const PerformChecklistPage = () => {
 
 	const [currentStep, setCurrentStep] = React.useState(0);
 	const [selectedChecklist, setSelectedChecklist] = React.useState(null);
+	const [assetDropdownTrigger, setAssetDropdownTrigger] = useState(0);
 	const [selectedAssets, setSelectedAssets] = React.useState([]);
 	const [isFormFilled, setIsFormFilled] = React.useState(false);
 
@@ -62,19 +66,6 @@ const PerformChecklistPage = () => {
 	};
 
 	useEffect(() => {
-		setSelectedAssets([]);
-		setAssetSearchInput("");
-
-		if (selectedChecklist) {
-			fetchAssets({
-				search: assetSearchInput,
-				checklistId: selectedChecklist?.id,
-				perPage: maxItem,
-			});
-		}
-	}, [selectedChecklist]);
-
-	useEffect(() => {
 		fetchChecklistItems({
 			assetId: selectedAssets[0]?.id,
 			checklistId: selectedChecklist?.id,
@@ -87,6 +78,7 @@ const PerformChecklistPage = () => {
 			checklistId: selectedChecklist?.id,
 			perPage: maxItem,
 		});
+		router.reload();
 	};
 
 	const customChecklistListStyle = (option) => {
@@ -191,7 +183,7 @@ const PerformChecklistPage = () => {
 				<MultiSelectSearchableDropdown
 					modalId={checklistModalID}
 					options={
-						checklists?.checklistArray?.map((checklist) => ({
+						checklistsOverview?.checklistArray?.map((checklist) => ({
 							value: checklist.name,
 							label: checklist.form_control_no,
 							original: checklist,
@@ -199,6 +191,14 @@ const PerformChecklistPage = () => {
 					}
 					onChange={(value) => {
 						setSelectedChecklist(value[0]);
+						setAssetDropdownTrigger((prev) => prev + 1);
+						setSelectedAssets([]);
+						setAssetSearchInput("");
+						fetchAssets({
+							search: assetSearchInput,
+							checklistId: value[0]?.id,
+							perPage: maxItem,
+						});
 					}}
 					returnKey="original"
 					defaultSelectedOptions={
@@ -225,10 +225,10 @@ const PerformChecklistPage = () => {
 							</div>
 						);
 					}}
+					isOpen={true}
 					disableSelectedContainer
 					disableClearSelection
 					disableTooltip
-					isLoading={isLoading}
 					itemName="Checklist List"
 					prompt="Select Checklist"
 					contentClassName="h-120"
@@ -238,58 +238,58 @@ const PerformChecklistPage = () => {
 					{customChecklistListStyle}
 				</MultiSelectSearchableDropdown>
 
-				{selectedChecklist && (
-					<MultiSelectSearchableDropdown
-						modalId={assetModalID}
-						options={
-							assets?.assets?.map((item) => ({
-								value: String(item.code),
-								label: item?.location?.location_name,
-								totalCheckItems: item?.total_items,
-								dueCheckItems: item?.due_items,
-								doneCheckItems: item?.done_items,
-								original: item,
-							})) || []
-						}
-						onChange={(value) => {
-							handleAssetsChange(value);
-						}}
-						itemName="Asset List"
-						isLoading={isLoadingAsset}
-						singleSelect
-						disableTooltip
-						disableSelectedContainer
-						customButtonLabel={({ selectedOptions }) => {
-							return (
-								<div>
-									{selectedOptions.length > 0 ? (
-										<div className="flex items-left justify-between w-full">
-											<h1 className="flex gap-2 items-center w-full text-lg">
-												<span className="text-sm font-normal text-base-content">
-													on equipment
-												</span>
-												<span>{selectedOptions[0]}</span>
-											</h1>
-										</div>
-									) : (
-										"Pick an Asset on this checklist"
-									)}
-								</div>
-							);
-						}}
-						prompt="Select Asset"
-						buttonSelectorClassName={
-							"w-full min-h-8 h-auto btn-soft btn-primary text-left"
-						}
-						contentClassName={"h-120"}
-						defaultSelectedOptions={
-							selectedAssets?.name ? [selectedAssets.name] : []
-						}
-						returnKey={"original"}
-					>
-						{customAssetListStyle}
-					</MultiSelectSearchableDropdown>
-				)}
+				<MultiSelectSearchableDropdown
+					modalId={assetModalID}
+					options={
+						assets?.assets?.map((item) => ({
+							value: String(item.code),
+							label: item?.location?.location_name,
+							totalCheckItems: item?.total_items,
+							dueCheckItems: item?.due_items,
+							doneCheckItems: item?.done_items,
+							original: item,
+						})) || []
+					}
+					onChange={(value) => {
+						handleAssetsChange(value);
+					}}
+					isOpen={selectedChecklist !== null}
+					openTrigger={assetDropdownTrigger}
+					itemName="Asset List"
+					isLoading={isLoadingAsset}
+					singleSelect
+					disableTooltip
+					disableSelectedContainer
+					customButtonLabel={({ selectedOptions }) => {
+						return (
+							<div>
+								{selectedOptions.length > 0 ? (
+									<div className="flex items-left justify-between w-full">
+										<h1 className="flex gap-2 items-center w-full text-lg">
+											<span className="text-sm font-normal text-base-content">
+												on equipment
+											</span>
+											<span>{selectedOptions[0]}</span>
+										</h1>
+									</div>
+								) : (
+									"Pick an Asset on this checklist"
+								)}
+							</div>
+						);
+					}}
+					prompt="Select Asset"
+					buttonSelectorClassName={
+						"w-full min-h-8 h-auto btn-soft btn-primary text-left"
+					}
+					contentClassName={"h-120"}
+					defaultSelectedOptions={
+						selectedAssets?.name ? [selectedAssets.name] : []
+					}
+					returnKey={"original"}
+				>
+					{customAssetListStyle}
+				</MultiSelectSearchableDropdown>
 
 				{selectedChecklist &&
 					selectedAssets.length > 0 &&

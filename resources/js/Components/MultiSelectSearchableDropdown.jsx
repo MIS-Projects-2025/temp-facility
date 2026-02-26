@@ -24,6 +24,7 @@ const MultiSelectSearchableDropdown = memo(
 		buttonSelectorClassName = "w-52",
 		onFocus = () => {},
 		onSearchChange,
+		isOpen = undefined,
 		useModal = false,
 		modalRef = null,
 		disableSelectedContainer = false,
@@ -34,12 +35,17 @@ const MultiSelectSearchableDropdown = memo(
 		currentPage = null,
 		customButtonLabel = null,
 		children,
+		openTrigger = 0,
 		goToPage = () => {},
 	}) {
 		const id = useId();
+		const popoverId = `popover-${id}`;
+		const anchorName = `--anchor-${id}`;
+
 		const wrapperRef = useRef(null);
 
-		const [open, setOpen] = useState(false);
+		// const [open, setOpen] = useState(isOpen !== undefined ? isOpen : false);
+
 		const [selectedOptions, setSelectedOptions] = useState(
 			defaultSelectedOptions,
 		);
@@ -49,6 +55,21 @@ const MultiSelectSearchableDropdown = memo(
 		);
 		const [searchInput, setSearchInput] = useState("");
 		const [debouncedSearch, setDebouncedSearch] = useState("");
+
+		useEffect(() => {
+			if (isOpen === undefined) return;
+			const el = document.getElementById(`popover-${id}`);
+			if (!el) return;
+			if (isOpen) el.showPopover?.();
+			else el.hidePopover?.();
+		}, [isOpen]);
+
+		useEffect(() => {
+			if (openTrigger === 0) return; // skip initial
+			const el = document.getElementById(popoverId);
+			el?.showPopover?.();
+			// setOpen(true);
+		}, [openTrigger]);
 
 		useEffect(() => {
 			if (controlledSelectedOptions.length > 0) {
@@ -76,7 +97,8 @@ const MultiSelectSearchableDropdown = memo(
 			let updatedValues;
 			if (singleSelect) {
 				updatedValues = [value];
-				setOpen(false);
+				// setOpen(false);
+				document.getElementById(`popover-${id}`)?.hidePopover?.();
 			} else {
 				const isChecked = e.target.checked;
 				updatedValues = isChecked
@@ -279,16 +301,7 @@ const MultiSelectSearchableDropdown = memo(
 
 		if (!useModal) {
 			return (
-				<div
-					ref={wrapperRef}
-					className="dropdown w-full"
-					onFocus={onFocus}
-					onBlur={(e) => {
-						if (!wrapperRef.current?.contains(e.relatedTarget)) {
-							setOpen(false);
-						}
-					}}
-				>
+				<div ref={wrapperRef} className="w-full" onFocus={onFocus}>
 					{!disableTooltip && (
 						<Tooltip
 							id={tooltipID}
@@ -307,37 +320,37 @@ const MultiSelectSearchableDropdown = memo(
 							</div>
 						</Tooltip>
 					)}
-					<div
-						tabIndex={0}
-						role="button"
+
+					<button
+						type="button"
 						data-tooltip-id={tooltipID}
-						onClick={() => setOpen(true)}
-						onFocus={() => setOpen(true)}
+						popoverTarget={popoverId}
+						style={{ anchorName }}
 						className={clsx(
 							"btn border border-base-content/20",
 							buttonSelectorClassName,
 						)}
 					>
 						{getButtonLabel()}
-					</div>
-					{open && (
-						<>
-							<ul
-								tabIndex="-1"
-								className="dropdown-content menu z-50 w-full flex flex-col bg-base-100 rounded-box p-2 shadow-sm"
-							>
-								{promptLabel()}
-								{isLoading ? (
-									<div className="flex justify-center gap-2 my-auto">
-										<div className="loading loading-spinner"></div>
-										<div>loading {itemName}</div>
-									</div>
-								) : (
-									content()
-								)}
-							</ul>
-						</>
-					)}
+					</button>
+
+					<ul
+						id={popoverId}
+						popover="auto"
+						style={{ positionAnchor: anchorName }}
+						className="dropdown menu w-full flex flex-col bg-base-100 rounded-box p-2 shadow-sm not-[&:popover-open]:hidden"
+						// onToggle={(e) => setOpen(e.newState === "open")}
+					>
+						{promptLabel()}
+						{isLoading ? (
+							<div className="flex justify-center gap-2 my-auto">
+								<div className="loading loading-spinner"></div>
+								<div>loading {itemName}</div>
+							</div>
+						) : (
+							content()
+						)}
+					</ul>
 				</div>
 			);
 		}

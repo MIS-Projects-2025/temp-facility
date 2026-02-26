@@ -149,8 +149,6 @@ Route::middleware([ApiAuthMiddleware::class])
         ->name('delete');
       Route::patch('/{id}/update', [ChecklistAssetsController::class, 'update'])
         ->name('update');
-      Route::get('/all-checklist-assets', [ChecklistAssetsController::class, 'getAllChecklistAssets'])
-        ->name('all-assets');
       Route::patch('/bulk-update', [ChecklistAssetsController::class, 'bulkUpdate'])
         ->name('bulkUpdate');
       Route::delete('/bulk-delete', [ChecklistAssetsController::class, 'massGenocide'])

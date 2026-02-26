@@ -5,12 +5,49 @@ namespace App\Http\Controllers;
 use App\Constants\RunningHours;
 use App\Repositories\CheckItemsResultRepository;
 use App\Services\AssetsService;
+use App\Services\ChecklistsService;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
+use App\Models\ChecklistInstance;
 use App\Models\Checklist;
+use Carbon\Carbon;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class DashboardController extends Controller
 {
+    public function getOverallChecklistState()
+    {
+        $sub = (new AssetsService())->getDueAssetsQuery();
+
+        $assetsCollapsed = DB::table(DB::raw("({$sub->toSql()}) as sub"))
+            ->mergeBindings($sub->getQuery())
+            ->select([
+                'sub.id',
+                'sub.code',
+                'sub.location_name',
+                DB::raw('SUM(sub.due_items) as due_items'),
+                DB::raw('SUM(sub.done_items) as done_items'),
+                DB::raw('SUM(sub.overdue_items) as overdue_items'),
+            ])
+            ->groupBy('sub.id', 'sub.code', 'sub.location_name');
+
+        $assetDetails = $assetsCollapsed->get();
+
+        Log::info("query get" . json_encode($assetsCollapsed->get()));
+
+        $summary = [
+            'total_assets'      => $assetDetails->count(),
+            'assets_complete'   => $assetDetails->filter(fn($a) => $a->due_items == 0 && $a->done_items > 0)->values(),
+            'assets_partial'    => $assetDetails->filter(fn($a) => $a->due_items > 0 && $a->done_items > 0)->values(),
+            'assets_not_started' => $assetDetails->filter(fn($a) => $a->due_items > 0 && $a->done_items == 0)->values(),
+            'assets_idle'       => $assetDetails->filter(fn($a) => $a->due_items == 0 && $a->done_items == 0)->values(),
+            'assets_overdue'    => $assetDetails->filter(fn($a) => $a->overdue_items > 0)->values(),
+        ];
+
+        return $summary;
+    }
+
     public function index(Request $request)
     {
         $vacuumChecklistId = Checklist::where('slug', 'vacuum_pump')->value('id');
@@ -19,19 +56,27 @@ class DashboardController extends Controller
         $CheckItemsResultsRepo = new CheckItemsResultRepository();
 
         $vacuumLatestRunningHours = $CheckItemsResultsRepo->latestRunningHoursByChecklist($vacuumChecklistId);
-        $assetsDue = (new AssetsService())->countDues();
+        $assetsOverview = self::getOverallChecklistState();
+        $checklistsOverview = (new ChecklistsService())->getAllChecklistsWithDueAssets();
         $airCompressorLatestRunningHours = $CheckItemsResultsRepo->latestRunningHoursByChecklist($airCompressorChecklistId);
+
+        $unverifiedToday = ChecklistInstance::whereNull('verified_at')->whereDate('created_at', Carbon::today())->count();
+        $unverifiedTotal = ChecklistInstance::whereNull('verified_at')->count();
 
         return Inertia::render('Dashboard', [
             'vacuum_latest_running_hours' => $vacuumLatestRunningHours,
             'air_compressor_latest_running_hours' => $airCompressorLatestRunningHours,
             'vacuum_running_hours_ok' => RunningHours::VACUUM_RUNNING_HOURS_OK,
-            'assets_due' => $assetsDue,
             'vacuum_running_hours_warning' => RunningHours::VACUUM_RUNNING_HOURS_WARNING,
             'vacuum_running_hours_danger' => RunningHours::VACUUM_RUNNING_HOURS_DANGER,
             'air_compressor_running_hours_ok' => RunningHours::AIR_COMPRESSOR_RUNNING_HOURS_OK,
             'air_compressor_running_hours_warning' => RunningHours::AIR_COMPRESSOR_RUNNING_HOURS_WARNING,
-            'air_compressor_running_hours_danger' => RunningHours::AIR_COMPRESSOR_RUNNING_HOURS_DANGER
+            'air_compressor_running_hours_danger' => RunningHours::AIR_COMPRESSOR_RUNNING_HOURS_DANGER,
+
+            'assets_due' => $assetsOverview,
+            'checklists_overview' => $checklistsOverview,
+            'unverified_today' => $unverifiedToday,
+            'unverified_total' => $unverifiedTotal
         ]);
     }
 }

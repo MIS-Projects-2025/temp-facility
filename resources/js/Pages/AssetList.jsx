@@ -11,7 +11,13 @@ import { useEditableTable } from "@/Hooks/useEditableTable";
 import { useFetch } from "@/Hooks/useFetch";
 import { useMutation } from "@/Hooks/useMutation";
 import { router, usePage } from "@inertiajs/react";
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, {
+	useCallback,
+	useEffect,
+	useMemo,
+	useRef,
+	useState,
+} from "react";
 import toast from "react-hot-toast";
 import { FaPlus, FaSave } from "react-icons/fa";
 import { MdOutlineDelete } from "react-icons/md";
@@ -74,6 +80,30 @@ const AssetList = () => {
 		document.getElementById(locationModalID).close();
 	};
 
+	const handleLocationSearchChange = useCallback((searchValue) => {
+		fetchLocations({
+			search: searchValue,
+			page: 1,
+			perPage: maxItem,
+		});
+		setLocationSearchInput(searchValue);
+	}, []);
+
+	const handleEditedItemClick = useCallback((row, value, column) => {
+		const rootKey = column?.columnDef?.accessorKey?.split(".")[0];
+		// React 18 batches these automatically, but be explicit
+		React.startTransition(() => {
+			setSelectedCell({ rootKey, row, value, column });
+			setSelectedEditItem([value]);
+		});
+	}, []);
+
+	// const handleEditedItemClick = useCallback((row, value, column) => {
+	// 	const rootKey = column?.columnDef?.accessorKey?.split(".")[0];
+	// 	setSelectedCell({ rootKey, row, value, column });
+	// 	setSelectedEditItem([value]);
+	// }, []);
+
 	const columns = React.useMemo(
 		() => [
 			ReadOnlyColumns({
@@ -118,7 +148,7 @@ const AssetList = () => {
 				],
 			},
 		],
-		[],
+		[handleEditedItemClick],
 	);
 
 	const {
@@ -162,15 +192,6 @@ const AssetList = () => {
 		});
 	};
 
-	const handleLocationSearchChange = useCallback((searchValue) => {
-		fetchLocations({
-			search: searchValue,
-			page: 1,
-			perPage: maxItem,
-		});
-		setLocationSearchInput(searchValue);
-	}, []);
-
 	const refresh = () => {
 		router.reload();
 	};
@@ -192,16 +213,6 @@ const AssetList = () => {
 			console.error(error);
 		}
 	};
-
-	function handleEditedItemClick(row, value, column) {
-		console.log("🚀 ~ handleEditedItemClick ~ row:", row);
-		const rootKey = column?.columnDef?.accessorKey?.split(".")[0];
-		setSelectedCell({ rootKey, row, value, column });
-
-		console.log("🚀 ~ handleEditedItemClick ~ value:", value);
-
-		setSelectedEditItem([value]);
-	}
 
 	const deleteModalRef = useRef(null);
 
@@ -249,17 +260,20 @@ const AssetList = () => {
 		document.getElementById(saveChangeIDModal).showModal();
 	};
 
-	const commonEditModalConfig = {
-		defaultSelectedOptions: [selectedEditItem],
-		controlledSelectedOptions: selectedEditItem,
-		returnKey: "original",
-		singleSelect: true,
-		disableTooltip: true,
-		disableClearSelection: true,
-		useModal: true,
-		disableSelectedContainer: true,
-		paginated: true,
-	};
+	const commonEditModalConfig = useMemo(
+		() => ({
+			defaultSelectedOptions: [selectedEditItem],
+			controlledSelectedOptions: selectedEditItem,
+			returnKey: "original",
+			singleSelect: true,
+			disableTooltip: true,
+			disableClearSelection: true,
+			useModal: true,
+			disableSelectedContainer: true,
+			paginated: true,
+		}),
+		[selectedEditItem],
+	);
 
 	const goToPage = (page) => {
 		router.reload({

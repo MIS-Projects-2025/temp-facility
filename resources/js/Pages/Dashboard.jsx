@@ -165,7 +165,7 @@ const CATEGORIES = [
 		label: "Complete",
 		description: "All due items checked",
 		color: "text-emerald-600",
-		bg: "bg-emerald-500/10",
+		bg: "bg-emerald-500/2",
 		border: "border-emerald-200/50",
 		indicator: "bg-emerald-500",
 		barColor: "bg-emerald-400",
@@ -184,7 +184,7 @@ const CATEGORIES = [
 		label: "Partial",
 		description: "Some items still due",
 		color: "text-amber-600",
-		bg: "bg-amber-500/10",
+		bg: "bg-amber-500/2",
 		border: "border-amber-200/50",
 		indicator: "bg-amber-500",
 		barColor: "bg-amber-400",
@@ -203,7 +203,7 @@ const CATEGORIES = [
 		label: "Not Started",
 		description: "No items checked yet",
 		color: "text-red-600",
-		bg: "bg-red-500/10",
+		bg: "bg-red-500/2",
 		border: "border-red-200/50",
 		indicator: "bg-red-500",
 		barColor: "bg-red-400",
@@ -222,7 +222,7 @@ const CATEGORIES = [
 		label: "Overdue",
 		description: "Due date has passed",
 		color: "text-slate-500",
-		bg: "bg-slate-500/10",
+		bg: "bg-slate-500/2",
 		border: "border-slate-200/50",
 		indicator: "bg-slate-400",
 		barColor: "bg-slate-300",
@@ -247,14 +247,14 @@ function AssetRow({ asset, color, barColor }) {
 	const pct = total > 0 ? Math.round((done / total) * 100) : 0;
 
 	return (
-		<div className="flex items-center gap-3 py-2 px-1 hover:bg-black/5 transition-colors">
+		<div className="flex items-center gap-3 py-2 hover:bg-black/5 transition-colors">
 			<div className="flex-1 min-w-0">
 				<div className="flex items-center gap-1">
 					<span className="text-sm font-semibold text-base-content truncate">
 						{asset.code}
 					</span>
 					{overdue > 0 && (
-						<span className="text-[10px] font-light px-1.5 py-0.5  text-red-600 shrink-0">
+						<span className="text-[10px] font-light text-red-600 shrink-0">
 							{overdue} overdue
 						</span>
 					)}
@@ -264,7 +264,7 @@ function AssetRow({ asset, color, barColor }) {
 				</p>
 			</div>
 
-			<div className="flex items-center gap-1 shrink-0">
+			<div className="flex flex-col items-center gap-1 shrink-0">
 				{total > 0 && (
 					<div className="flex items-center gap-1.5">
 						<div className="w-16 h-1.5 rounded-full bg-black/10 overflow-hidden">
@@ -275,8 +275,8 @@ function AssetRow({ asset, color, barColor }) {
 						</div>
 					</div>
 				)}
-				<div className="flex flex-col items-end min-w-10">
-					<div className={clsx("text-xs font-medium tabular-nums", color)}>
+				<div className="flex items-end min-w-10">
+					<div className={clsx("text-[11px] font-medium tabular-nums", color)}>
 						{done}/{total}
 					</div>
 					<div className="text-[11px] text-base-content/50 w-8 text-right">
@@ -377,22 +377,8 @@ function CategoryCard({ category, assets = [] }) {
 
 // ─── Main component ───────────────────────────────────────────────────────────
 function AssetDueCategories({ assets_due = mockData }) {
-	const total = CATEGORIES.reduce(
-		(sum, cat) => sum + (assets_due[cat.key]?.length ?? 0),
-		0,
-	);
-
 	return (
 		<section className="space-y-2">
-			<div className="flex items-baseline gap-2">
-				<h2 className="text-base font-semibold text-base-content">
-					Checklist Status
-				</h2>
-				<span className="text-xs text-base-content/40">
-					{total} assets total
-				</span>
-			</div>
-
 			<div className="grid grid-cols-2 gap-2 lg:grid-cols-4">
 				{CATEGORIES.map((category) => (
 					<CategoryCard
@@ -413,12 +399,16 @@ export default function Dashboard() {
 		air_compressor_latest_running_hours,
 		vacuum_running_hours_ok,
 		assets_due,
+		unverified_today,
+		checklists_overview,
+		unverified_total,
 		vacuum_running_hours_warning,
 		vacuum_running_hours_danger,
 		air_compressor_running_hours_ok,
 		air_compressor_running_hours_warning,
 		air_compressor_running_hours_danger,
 	} = usePage().props;
+	console.log("🚀 ~ Dashboard ~ checklists_overview:", checklists_overview);
 	console.log("🚀 ~ Dashboard ~ assets_due:", assets_due);
 	console.log(
 		"🚀 ~ Dashboard ~ vacuum_latest_running_hours:",
@@ -470,6 +460,11 @@ export default function Dashboard() {
 		},
 	];
 
+	const total = CATEGORIES.reduce(
+		(sum, cat) => sum + (assets_due[cat.key]?.length ?? 0),
+		0,
+	);
+
 	return (
 		<>
 			<Head title="Dashboard" />
@@ -477,7 +472,30 @@ export default function Dashboard() {
 			<div className="space-y-4">
 				<h1 className="text-2xl font-bold text-base-content">Dashboard</h1>
 
-				<AssetDueCategories assets_due={assets_due} />
+				<div className="flex gap-4">
+					<div className="flex-1">
+						<div className="flex items-center gap-2">
+							<div className="flex flex-col">
+								<h2 className="text-base font-semibold text-base-content">
+									Checklist Status
+								</h2>
+								<span className="text-xs text-base-content/40">
+									{total} assets total
+								</span>
+							</div>
+							<div className="flex justify-center">
+								<div className="font-bold flex gap-1 items-center text-primary">
+									<div className="text-[30px]">{unverified_total}</div>
+									<div className="">unverified overall</div>
+								</div>
+							</div>
+							{/* <div className="font-bold text-primary text-center">
+								{unverified_today}, today
+							</div> */}
+						</div>
+						<AssetDueCategories assets_due={assets_due} />
+					</div>
+				</div>
 
 				<SpeedometerGroup
 					title="Vacuum Running Hours"
