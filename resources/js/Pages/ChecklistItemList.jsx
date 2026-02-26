@@ -1,3 +1,4 @@
+import BulkErrors from "@/Components/BulkErrors";
 import ChangeReviewModal from "@/Components/ChangeReviewModal";
 import DeleteModal from "@/Components/DeleteModal";
 import MultiSelectSearchableDropdown from "@/Components/MultiSelectSearchableDropdown";
@@ -219,10 +220,21 @@ const ChecklistItemList = () => {
 	const deleteModalRef = useRef(null);
 
 	const saveChanges = async () => {
+		const payload = Object.entries(editedRows).map(([rowId, row]) => {
+			const { schedule, item, ...rest } = row;
+			return {
+				...rest,
+				id: rowId,
+				item_id: item?.id ?? null,
+				schedule_id: schedule?.id ?? null,
+				checklist_id: selectedChecklist?.id,
+			};
+		});
+
 		try {
 			await mutate(route("api.checklist-items.bulkUpdate"), {
 				method: "PATCH",
-				body: editedRows,
+				body: payload,
 			});
 			checklistItemsFetch();
 			document.getElementById(saveChangeIDModal).close();
@@ -384,6 +396,10 @@ const ChecklistItemList = () => {
 						buttonSelectorClassName="w-full h-auto btn-soft btn-primary text-left"
 						singleSelect
 					/>
+				</div>
+
+				<div className="px-2 w-full">
+					{<BulkErrors errors={mutateErrorData?.data || []} />}
 				</div>
 
 				<TanstackTable table={table} isTableLoading={isChecklistItemsLoading} />

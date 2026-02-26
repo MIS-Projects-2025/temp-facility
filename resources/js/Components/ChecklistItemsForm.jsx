@@ -100,7 +100,7 @@ export default function ChecklistItemsForm({
 	return (
 		<form
 			onSubmit={handleSubmit(onSubmit)}
-			className="flex-1 flex flex-col justify-between"
+			className="flex-1 flex flex-col justify-between overflow-hidden"
 		>
 			{isAllDone && (
 				<div
@@ -111,32 +111,31 @@ export default function ChecklistItemsForm({
 					All Items on this checklist are already done
 				</div>
 			)}
-			<div className="h-125 overflow-y-auto">
+			<div className="overflow-y-auto min-h-0 flex-1">
 				<div className="mt-4 mb-2 flex items-center">
-					<div className="flex-2 font-semibold">Due Items to be checked</div>
-					<div className="flex-1">Criteria</div>
+					<div className="flex-4 font-semibold">Items to be checked</div>
+					<div className="flex-2">Criteria</div>
 					<div className="flex-1 input cursor-default border-0">Status</div>
 					<div className="flex-1 input cursor-default border-0">Remarks</div>
-					<div className="flex-1 opacity-50">Last Checked</div>
-					<div className="flex-1 opacity-50 text-right">Checked | Verified</div>
+					<div className="flex-2 opacity-50">Last Checked</div>
+					<div className="flex-2 opacity-50 text-right">Checked | Verified</div>
 				</div>
 				<div>
 					{fields.map((field, index) => {
 						// const isDisabled = !items[index].is_due;
 						const isDisabled = false;
-						const name = items[index].name;
-						const scheduleName = items[index].schedule_name;
-						const criteria = items[index].criteria;
-						const checkedAt = items[index].checked_at;
-						const createdBy = items[index].created_by;
-						const verifiedBy = items[index].verified_by;
-						const hasNoSchedule = Boolean(items[index].is_no_schedule);
+						const name = items[index]?.name;
+						const scheduleName = items[index]?.schedule_name;
+						const criteria = items[index]?.criteria;
+						const checkedAt = items[index]?.checked_at;
+						const createdBy = items[index]?.created_by;
+						const verifiedBy = items[index]?.verified_by;
+						const hasNoSchedule = Boolean(items[index]?.is_no_schedule);
 						console.log(
 							"🚀 ~ ChecklistItemsForm ~ hasNoSchedule:",
 							hasNoSchedule,
 						);
-						const isDue = items[index].is_due && !hasNoSchedule;
-						const isVerified = Boolean(items[index].verified_by);
+						const isDue = items[index]?.is_due && !hasNoSchedule;
 
 						return (
 							<div
@@ -145,12 +144,12 @@ export default function ChecklistItemsForm({
 								})}
 								key={field.id}
 							>
-								<label className="flex-2">
+								<label className="flex-4">
 									<span className="mr-1 opacity-50">{scheduleName} | </span>
 									<span>{name}</span>
 								</label>
 
-								<div className="flex-1">
+								<div className="flex-2">
 									<span className="">{criteria}</span>
 								</div>
 
@@ -175,7 +174,7 @@ export default function ChecklistItemsForm({
 									{...register(`items.${index}.remarks`, {})}
 								/>
 
-								<div className="flex-1 flex gap-1 items-center">
+								<div className="flex-2 flex gap-1 items-center">
 									<div className="opacity-50 text-xs">
 										{formatTimestamp(checkedAt)}
 									</div>
@@ -192,16 +191,16 @@ export default function ChecklistItemsForm({
 
 									{errors.items?.[index]?.item_status && (
 										<p className="text-warning">
-											{errors.items[index].item_status.message}
+											{errors.items[index]?.item_status.message}
 										</p>
 									)}
 									{errors.items?.[index]?.remarks && (
 										<p className="text-warning">
-											{errors.items[index].remarks.message}
+											{errors.items[index]?.remarks.message}
 										</p>
 									)}
 								</div>
-								<div className="text-right flex-1 text-xs opacity-75 flex justify-end gap-1">
+								<div className="text-right flex-2 text-xs opacity-75 flex justify-end gap-1">
 									<span>{createdBy?.FIRSTNAME || "unknown"}</span>
 									<span className="opacity-50">|</span>
 									<span>{verifiedBy?.FIRSTNAME || "unknown"}</span>
@@ -219,7 +218,7 @@ export default function ChecklistItemsForm({
 				</div>
 			)}
 
-			<div className="flex flex-col w-full">
+			<div className="flex flex-col w-full shrink-0">
 				<div className="font-semibold">Remarks</div>
 				<textarea
 					className="mt-2 textarea w-full"

@@ -253,6 +253,9 @@ function ChecklistInstanceList() {
 				method: "PATCH",
 				body: instances,
 			});
+
+			toast.success("Checklist verified successfully!");
+			table.resetRowSelection();
 			refresh();
 		} catch (error) {
 			toast.error(error?.message);
@@ -510,8 +513,12 @@ function ChecklistInstanceList() {
 						</tbody>
 					</table>
 				</div>
-				<div className="flex justify-between border border-base-content/10 w-full p-2">
-					<div>notes: {selectedInstance.notes || "N/A"}</div>
+				<div className="flex border border-base-content/10 w-full p-2">
+					<div className="flex-1 ">
+						notes: {selectedInstance.notes || "N/A"}
+					</div>
+				</div>
+				<div className="mr-auto">
 					{selectedInstance?.verified_at ? (
 						<div>
 							<MdVerified className="text-success inline mr-1" /> verified{" "}
@@ -522,13 +529,14 @@ function ChecklistInstanceList() {
 							<span>({selectedInstance?.verifier?.EMPLOYID || "unkown"})</span>
 						</div>
 					) : (
-						<button
-							type="button"
-							className="btn btn-primary"
-							onClick={() => handleVerify([selectedInstance?.id])}
-						>
-							Verify
-						</button>
+						<CancellableActionButton
+							refetch={() => handleVerify([selectedInstance?.id])}
+							loading={isMutateLoading}
+							buttonText="Verify"
+							buttonClassName="btn-primary"
+							abort={mutateCancel}
+							loadingMessage="Verifying"
+						/>
 					)}
 				</div>
 			</Modal>

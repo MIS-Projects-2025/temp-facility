@@ -14,6 +14,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Database\QueryException;
 use App\Traits\MassDeletesByIds;
 use App\Constants\DueScheduleQuery;
+use App\Services\BulkUpserter;
 
 class ChecklistItemsController extends Controller
 {
@@ -155,250 +156,54 @@ class ChecklistItemsController extends Controller
     return response()->json($results);
   }
 
-
-  // public function getScheduledCheckItems(Request $request)
-  // {
-  //   $assetId = $request->input('assetId');
-  //   $checklistId = $request->input('checklistId');
-
-  //   $query = DB::table('checklist_items as ci')
-  //     ->select([
-  //       'ci.id',
-  //       'i.name',
-  //       'ci.checklist_id',
-  //       'ci.item_id',
-  //       'ci.criteria',
-  //       's.schedule_name',
-  //       'cir.checked_at',
-  //     ])
-
-  //     // check items
-  //     ->join('check_items as i', 'ci.item_id', '=', 'i.id')
-
-  //     // checklist_assets
-  //     ->join('checklist_assets as ca', function ($join) use ($assetId) {
-  //       $join->on('ca.checklist_id', '=', 'ci.checklist_id')
-  //         ->where('ca.asset_id', $assetId);
-  //     })
-
-  //     // entity_checklist_item_schedules
-  //     ->join('entity_checklist_item_schedules as ecs', 'ecs.checklist_item_id', '=', 'ci.id')
-
-  //     // schedules
-  //     ->join('schedules as s', 's.id', '=', 'ecs.schedule_id')
-
-  //     // latest checklist_item_results per item
-  //     ->leftJoin('checklist_item_results as cir', function ($join) use ($assetId) {
-  //       $join->on('cir.checklist_item_id', '=', 'ci.id')
-  //         ->where('cir.asset_id', $assetId)
-  //         ->whereRaw('cir.checked_at = (
-  //                SELECT MAX(checked_at)
-  //                FROM checklist_item_results
-  //                WHERE checklist_item_id = ci.id
-  //            )');
-  //     })
-
-  //     ->where('ci.checklist_id', $checklistId)
-
-  //     ->where(function ($q) {
-
-  //       // Due daily
-  //       $q->where(function ($q) {
-  //         $q->where('s.recurrence_type', 'interval')
-  //           ->where('s.interval_unit', 'day')
-  //           ->whereRaw('
-  //                 cir.checked_at IS NULL
-  //                 OR DATEDIFF(CURDATE(), DATE(cir.checked_at)) >= s.interval_value
-  //             ');
-  //       })
-
-  //         // Due weekly
-  //         ->orWhere(function ($q) {
-  //           $q->where('s.recurrence_type', 'interval')
-  //             ->where('s.interval_unit', 'week')
-  //             ->whereRaw('
-  //                 cir.checked_at IS NULL
-  //                 OR FLOOR(DATEDIFF(CURDATE(), DATE(cir.checked_at)) / 7) >= s.interval_value
-  //             ');
-  //         })
-
-  //         // Due monthly
-  //         ->orWhere(function ($q) {
-  //           $q->where('s.recurrence_type', 'interval')
-  //             ->where('s.interval_unit', 'month')
-  //             ->whereRaw('
-  //                 cir.checked_at IS NULL
-  //                 OR PERIOD_DIFF(
-  //                     EXTRACT(YEAR_MONTH FROM CURDATE()),
-  //                     EXTRACT(YEAR_MONTH FROM DATE(cir.checked_at))
-  //                 ) >= s.interval_value
-  //             ');
-  //         })
-
-  //         // Due hourly
-  //         ->orWhere(function ($q) {
-  //           $q->where('s.recurrence_type', 'interval')
-  //             ->where('s.interval_unit', 'hour')
-  //             ->whereRaw('
-  //                 cir.checked_at IS NULL
-  //                 OR TIMESTAMPDIFF(HOUR, cir.checked_at, NOW()) >= s.interval_value
-  //             ');
-  //         })
-
-  //         // Daily with day_times JSON
-  //         ->orWhere(function ($q) {
-  //           $q->where('s.recurrence_type', 'daily')
-  //             ->where('s.interval_unit', 'day')
-  //             ->whereNotNull('s.day_times')
-  //             ->whereExists(function ($sub) {
-  //               $sub->select(DB::raw(1))
-  //                 ->from(DB::raw("
-  //                         JSON_TABLE(
-  //                             s.day_times,
-  //                             '$[*]' COLUMNS (
-  //                                 t TIME PATH '$'
-  //                             )
-  //                         ) as jt
-  //                     "))
-  //                 ->whereRaw('
-  //                         TIMESTAMP(CURDATE(), jt.t) <= NOW()
-  //                         AND (
-  //                             cir.checked_at IS NULL
-  //                             OR cir.checked_at < TIMESTAMP(CURDATE(), jt.t)
-  //                         )
-  //                     ');
-  //             });
-  //         });
-  //     });
-
-  //   $results = $query->get();
-
-  //   return response()->json($results);
-  // }
-
   public function bulkUpdate(Request $request)
   {
     $rows = $request->all();
     $user = session('emp_data');
-    Log::info("rowaaaaaas: " . json_encode($rows));
 
-    $updateData = [];
-    $insertData = [];
+    $columnRules = [
+      'item_id' => fn($id, $fields) => [
+        'required',
+        'int',
+        Rule::unique('checklist_items', 'item_id')
+          ->where('checklist_id', $fields['checklist_id'] ?? null)
+          ->ignore($id),
+      ],
+      'schedule_id' => fn($id) => [
+        'sometimes',
+        'nullable',
+        'int',
+        Rule::exists('schedules', 'id'),
+      ],
+      'checklist_id' => fn($id) => [
+        'required',
+        'int',
+        Rule::exists('checklists', 'id'),
+      ]
+    ];
 
-    foreach ($rows as $key => $entry) {
-      $row = [];
+    $rows = array_map(function ($row) use ($user) {
+      $row['modified_by'] = $user['emp_id'] ?? null;
+      return $row;
+    }, $rows);
 
+    $bulkUpdater = new BulkUpserter(new ChecklistItem(), $columnRules, [], []);
 
-      $row['item_id'] = $entry['item']['id'] ?? null;
-      $row['schedule_id'] = $entry['schedule']['id'] ?? null;
+    $result = $bulkUpdater->update($rows ?? null);
 
-      // Extract other columns if needed
-      $row['criteria'] = $entry['criteria'] ?? null;
-      $row['checklist_id'] = $entry['checklist_id'] ?? null;
-
-      if (is_numeric($key)) {
-        $row['id'] = $key;
-        $updateData[] = $row;
-      } else {
-        $insertData[] = $row;
-      }
-    }
-
-    $duplicateRows = [];
-    // test case this
-    foreach ($insertData as $index => $row) {
-      $exists = ChecklistItem::where('checklist_id', $row['checklist_id'])
-        ->where('item_id', $row['item_id'])
-        ->where('criteria', $row['criteria'])
-        ->exists();
-
-      if ($exists) {
-        $duplicateRows[] = [
-          'index' => $index,
-          'item_id' => $row['item_id'],
-          'criteria' => $row['criteria'],
-        ];
-      }
-    }
-
-    if (!empty($duplicateRows)) {
+    if (!empty($result['errors'])) {
       return response()->json([
-        'message' => 'Some checklist items already exist with the same item and criteria.',
-        'duplicates' => $duplicateRows,
+        'status' => 'error',
+        'message' => 'You have ' . count($result['errors']) . ' error/s',
+        'data' => $result['errors']
       ], 422);
     }
 
-    $updateDataForChecklistItem = array_map(fn($row) => array_diff_key($row, ['schedule_id' => '']), $updateData);
-
-    Log::info("updateData: " . json_encode($updateData));
-    Log::info("insertData " . json_encode($insertData));
-    Log::info("updateDataForChecklistItem " . json_encode($updateDataForChecklistItem));
-
-    try {
-      DB::transaction(function () use (
-        $updateDataForChecklistItem,
-        $insertData,
-        $updateData,
-        $rows,
-        $user
-      ) {
-
-        ChecklistItem::upsert(
-          array_map(fn($row) => array_merge($row, [
-            'modified_by' => $user['emp_id'] ?? null,
-            'modified_at' => Carbon::now(),
-          ]), $updateDataForChecklistItem),
-          ['id'],
-          ['item_id', 'criteria', 'checklist_id', 'modified_by', 'modified_at']
-        );
-
-        foreach ($updateData as $row) {
-          $scheduleId = $row['schedule_id'] ?? null;
-          $id = $row['id'];
-
-          if ($scheduleId === null) {
-            DB::table('entity_checklist_item_schedules')
-              ->where('checklist_item_id', $id)
-              ->delete();
-          } else {
-            DB::table('entity_checklist_item_schedules')
-              ->updateOrInsert(
-                ['checklist_item_id' => $id],
-                ['schedule_id' => $scheduleId]
-              );
-          }
-        }
-
-        foreach ($insertData as $row) {
-          $scheduleId = $row['schedule_id'] ?? null;
-          unset($row['schedule_id']);
-
-          $item = ChecklistItem::create(array_merge($row, [
-            'modified_by' => $user['emp_id'] ?? null,
-            'modified_at' => Carbon::now(),
-          ]));
-
-          if ($scheduleId !== null) {
-            DB::table('entity_checklist_item_schedules')->insert([
-              'checklist_item_id' => $item->id,
-              'schedule_id' => $scheduleId,
-            ]);
-          }
-        }
-      });
-    } catch (QueryException $e) {
-
-      // MySQL duplicate key error
-      if ($e->errorInfo[1] === 1062) {
-        return response()->json([
-          'message' => 'A checklist item with the same item and criteria already exists.'
-        ], 422);
-      }
-
-      throw $e; // anything else is a real failure
-    }
-
-    return response()->json(['status' => 'ok']);
+    return response()->json([
+      'status' => 'ok',
+      'message' => 'Updated successfully',
+      'updated' => $result['updated']
+    ]);
   }
 
   public function store(Request $request)

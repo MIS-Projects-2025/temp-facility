@@ -1,3 +1,4 @@
+import BulkErrors from "@/Components/BulkErrors";
 import ChangeReviewModal from "@/Components/ChangeReviewModal";
 import DeleteModal from "@/Components/DeleteModal";
 import MultiSelectSearchableDropdown from "@/Components/MultiSelectSearchableDropdown";
@@ -366,6 +367,10 @@ const ChecklistAssetList = () => {
 				/>
 
 				<TanstackTable table={table} />
+
+				<div className="px-2 w-full">
+					{<BulkErrors errors={mutateErrorData?.data || []} />}
+				</div>
 
 				<Pagination
 					links={serverAssets?.links}

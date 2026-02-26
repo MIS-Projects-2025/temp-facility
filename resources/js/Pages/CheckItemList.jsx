@@ -1,3 +1,4 @@
+import BulkErrors from "@/Components/BulkErrors";
 import ChangeReviewModal from "@/Components/ChangeReviewModal";
 import DeleteModal from "@/Components/DeleteModal";
 import Pagination from "@/Components/Pagination";
@@ -210,7 +211,9 @@ const CheckItemList = () => {
 					/>
 				</div>
 
-				<TanstackTable table={table} />
+				<div className="px-2 w-full">
+					{<BulkErrors errors={mutateErrorData?.data || []} />}
+				</div>
 
 				<Pagination
 					links={serverCheckItems?.links}
@@ -221,6 +224,8 @@ const CheckItemList = () => {
 					start={serverCheckItems?.from}
 					end={serverCheckItems?.to}
 				/>
+
+				<TanstackTable table={table} />
 
 				<ChangeReviewModal
 					modalID={saveChangeIDModal}

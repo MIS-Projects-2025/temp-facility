@@ -1,3 +1,4 @@
+import BulkErrors from "@/Components/BulkErrors";
 import ChangeReviewModal from "@/Components/ChangeReviewModal";
 import DeleteModal from "@/Components/DeleteModal";
 import CheckBoxColumn from "@/Components/tanStackTable/CheckBoxColumn";
@@ -15,6 +16,15 @@ import { MdOutlineDelete } from "react-icons/md";
 //See https://tanstack.com/virtual/v3/docs/examples/react/table for a simpler fixed row height example.
 function SchedulesList() {
 	const deleteModalRef = useRef(null);
+
+	// NOT IN USE
+	// implementing a page for user to modify schedules would require a lot of work
+	// implementing a page for user to modify schedules would require a lot of work
+	// NOT IN USE
+	// NOT IN USE
+	// NOT IN USE
+	// NOT IN USE
+	// NOT IN USE
 
 	const {
 		mutate,
@@ -188,6 +198,11 @@ function SchedulesList() {
 					<MdOutlineDelete className="w-full h-full" />
 				</button>
 			</div>
+
+			<div className="px-2 w-full">
+				{<BulkErrors errors={mutateErrorData?.data || []} />}
+			</div>
+
 			<TanstackTable table={table} />
 
 			<ChangeReviewModal

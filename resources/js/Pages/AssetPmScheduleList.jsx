@@ -1,3 +1,4 @@
+import BulkErrors from "@/Components/BulkErrors";
 import ChangeReviewModal from "@/Components/ChangeReviewModal";
 import DeleteModal from "@/Components/DeleteModal";
 import MultiSelectSearchableDropdown from "@/Components/MultiSelectSearchableDropdown";
@@ -323,7 +324,9 @@ const AssetPmScheduleList = () => {
 					/>
 				</div>
 
-				<TanstackTable table={table} />
+				<div className="px-2 w-full">
+					{<BulkErrors errors={mutateErrorData?.data || []} />}
+				</div>
 
 				<Pagination
 					links={serverAssetPmSchedules?.links}
@@ -334,6 +337,8 @@ const AssetPmScheduleList = () => {
 					start={serverAssetPmSchedules?.from}
 					end={serverAssetPmSchedules?.to}
 				/>
+
+				<TanstackTable table={table} />
 
 				<ChangeReviewModal
 					modalID={saveChangeIDModal}

@@ -221,6 +221,7 @@ function RestroomMonitoringInstanceList() {
 			});
 
 			toast.success("Restroom Monitoring Checklist verified successfully!");
+			table.resetRowSelection();
 			refresh();
 		} catch (error) {
 			toast.error(error?.message);

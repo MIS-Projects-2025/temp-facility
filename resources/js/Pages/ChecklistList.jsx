@@ -1,3 +1,4 @@
+import BulkErrors from "@/Components/BulkErrors";
 import ChangeReviewModal from "@/Components/ChangeReviewModal";
 import DeleteModal from "@/Components/DeleteModal";
 import MultiSelectSearchableDropdown from "@/Components/MultiSelectSearchableDropdown";
@@ -206,6 +207,10 @@ const ChecklistList = () => {
 						initialSearchInput={searchInput}
 						onSearchChange={setSearchInput}
 					/>
+				</div>
+
+				<div className="px-2 w-full">
+					{<BulkErrors errors={mutateErrorData?.data || []} />}
 				</div>
 
 				<Pagination

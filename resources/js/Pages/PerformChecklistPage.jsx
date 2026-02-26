@@ -179,117 +179,119 @@ const PerformChecklistPage = () => {
 				/>
 			</div>
 
-			<div className="flex-1 flex flex-col bg-base-100 h-[calc(100vh-100px)] p-4 shadow-2xl">
-				<MultiSelectSearchableDropdown
-					modalId={checklistModalID}
-					options={
-						checklistsOverview?.checklistArray?.map((checklist) => ({
-							value: checklist.name,
-							label: checklist.form_control_no,
-							original: checklist,
-						})) || []
-					}
-					onChange={(value) => {
-						setSelectedChecklist(value[0]);
-						setAssetDropdownTrigger((prev) => prev + 1);
-						setSelectedAssets([]);
-						setAssetSearchInput("");
-						fetchAssets({
-							search: assetSearchInput,
-							checklistId: value[0]?.id,
-							perPage: maxItem,
-						});
-					}}
-					returnKey="original"
-					defaultSelectedOptions={
-						selectedChecklist?.name ? [selectedChecklist.name] : []
-					}
-					controlledSelectedOptions={
-						selectedChecklist?.name ? [selectedChecklist.name] : []
-					}
-					customButtonLabel={({ selectedOptions }) => {
-						return (
-							<div>
-								{selectedOptions.length > 0 ? (
-									<div className="flex items-center justify-between w-full">
-										<h1 className="flex gap-2 items-center w-full text-lg">
-											<span className="text-sm font-normal text-base-content">
-												Performing
-											</span>
-											<span>{selectedOptions[0]}</span>
-										</h1>
-									</div>
-								) : (
-									"Select a checklist to perform"
-								)}
-							</div>
-						);
-					}}
-					isOpen={true}
-					disableSelectedContainer
-					disableClearSelection
-					disableTooltip
-					itemName="Checklist List"
-					prompt="Select Checklist"
-					contentClassName="h-120"
-					buttonSelectorClassName="min-h-8 w-full h-auto btn-soft btn-primary text-left"
-					singleSelect
-				>
-					{customChecklistListStyle}
-				</MultiSelectSearchableDropdown>
+			<div className="flex-1 flex flex-col h-[calc(100vh-7rem)] bg-base-100 p-4 shadow-2xl">
+				<div className="flex">
+					<MultiSelectSearchableDropdown
+						modalId={checklistModalID}
+						options={
+							checklistsOverview?.checklistArray?.map((checklist) => ({
+								value: checklist.name,
+								label: checklist.form_control_no,
+								original: checklist,
+							})) || []
+						}
+						onChange={(value) => {
+							setSelectedChecklist(value[0]);
+							setAssetDropdownTrigger((prev) => prev + 1);
+							setSelectedAssets([]);
+							setAssetSearchInput("");
+							fetchAssets({
+								search: assetSearchInput,
+								checklistId: value[0]?.id,
+								perPage: maxItem,
+							});
+						}}
+						returnKey="original"
+						defaultSelectedOptions={
+							selectedChecklist?.name ? [selectedChecklist.name] : []
+						}
+						controlledSelectedOptions={
+							selectedChecklist?.name ? [selectedChecklist.name] : []
+						}
+						customButtonLabel={({ selectedOptions }) => {
+							return (
+								<div>
+									{selectedOptions.length > 0 ? (
+										<div className="flex items-center justify-between w-full">
+											<h1 className="flex gap-2 items-center w-full text-lg">
+												<span className="text-sm font-normal text-base-content">
+													Performing
+												</span>
+												<span>{selectedOptions[0]}</span>
+											</h1>
+										</div>
+									) : (
+										"Select a checklist to perform"
+									)}
+								</div>
+							);
+						}}
+						isOpen={true}
+						disableSelectedContainer
+						disableClearSelection
+						disableTooltip
+						itemName="Checklist List"
+						prompt="Select Checklist"
+						contentClassName="h-120"
+						buttonSelectorClassName="min-h-8 w-full h-auto btn-soft btn-primary text-left"
+						singleSelect
+					>
+						{customChecklistListStyle}
+					</MultiSelectSearchableDropdown>
 
-				<MultiSelectSearchableDropdown
-					modalId={assetModalID}
-					options={
-						assets?.assets?.map((item) => ({
-							value: String(item.code),
-							label: item?.location?.location_name,
-							totalCheckItems: item?.total_items,
-							dueCheckItems: item?.due_items,
-							doneCheckItems: item?.done_items,
-							original: item,
-						})) || []
-					}
-					onChange={(value) => {
-						handleAssetsChange(value);
-					}}
-					isOpen={selectedChecklist !== null}
-					openTrigger={assetDropdownTrigger}
-					itemName="Asset List"
-					isLoading={isLoadingAsset}
-					singleSelect
-					disableTooltip
-					disableSelectedContainer
-					customButtonLabel={({ selectedOptions }) => {
-						return (
-							<div>
-								{selectedOptions.length > 0 ? (
-									<div className="flex items-left justify-between w-full">
-										<h1 className="flex gap-2 items-center w-full text-lg">
-											<span className="text-sm font-normal text-base-content">
-												on equipment
-											</span>
-											<span>{selectedOptions[0]}</span>
-										</h1>
-									</div>
-								) : (
-									"Pick an Asset on this checklist"
-								)}
-							</div>
-						);
-					}}
-					prompt="Select Asset"
-					buttonSelectorClassName={
-						"w-full min-h-8 h-auto btn-soft btn-primary text-left"
-					}
-					contentClassName={"h-120"}
-					defaultSelectedOptions={
-						selectedAssets?.name ? [selectedAssets.name] : []
-					}
-					returnKey={"original"}
-				>
-					{customAssetListStyle}
-				</MultiSelectSearchableDropdown>
+					<MultiSelectSearchableDropdown
+						modalId={assetModalID}
+						options={
+							assets?.assets?.map((item) => ({
+								value: String(item.code),
+								label: item?.location?.location_name,
+								totalCheckItems: item?.total_items,
+								dueCheckItems: item?.due_items,
+								doneCheckItems: item?.done_items,
+								original: item,
+							})) || []
+						}
+						onChange={(value) => {
+							handleAssetsChange(value);
+						}}
+						isOpen={selectedChecklist !== null}
+						openTrigger={assetDropdownTrigger}
+						itemName="Asset List"
+						isLoading={isLoadingAsset}
+						singleSelect
+						disableTooltip
+						disableSelectedContainer
+						customButtonLabel={({ selectedOptions }) => {
+							return (
+								<div>
+									{selectedOptions.length > 0 ? (
+										<div className="flex items-left justify-between w-full">
+											<h1 className="flex gap-2 items-center w-full text-lg">
+												<span className="text-sm font-normal text-base-content">
+													on equipment
+												</span>
+												<span>{selectedOptions[0]}</span>
+											</h1>
+										</div>
+									) : (
+										"Pick an Asset on this checklist"
+									)}
+								</div>
+							);
+						}}
+						prompt="Select Asset"
+						buttonSelectorClassName={
+							"w-full min-h-8 h-auto btn-soft btn-primary text-left"
+						}
+						contentClassName={"h-120"}
+						defaultSelectedOptions={
+							selectedAssets?.name ? [selectedAssets.name] : []
+						}
+						returnKey={"original"}
+					>
+						{customAssetListStyle}
+					</MultiSelectSearchableDropdown>
+				</div>
 
 				{selectedChecklist &&
 					selectedAssets.length > 0 &&
