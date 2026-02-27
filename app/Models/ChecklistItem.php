@@ -17,7 +17,13 @@ class ChecklistItem extends Model
     'item_id',
     'criteria',
     'modified_by',
+    'input_type',
+    'allowed_values',
     'modified_at',
+  ];
+
+  protected $casts = [
+    'allowed_values' => 'array',
   ];
 
   public function checklist()

@@ -26,6 +26,7 @@ export default function ChecklistItemsForm({
 		register,
 		control,
 		handleSubmit,
+		setValue,
 		reset,
 		watch,
 		formState: { errors, isValid },
@@ -89,6 +90,8 @@ export default function ChecklistItemsForm({
 		onValid(isValid);
 	}, [isValid, onValid]);
 
+	const gridClass = "grid grid-cols-[4fr_2fr_2fr_2fr_2fr] items-center";
+
 	if (isItemsLoading) {
 		return (
 			<div className="w-full h-100 skeleton flex justify-center items-center">
@@ -112,13 +115,12 @@ export default function ChecklistItemsForm({
 				</div>
 			)}
 			<div className="overflow-y-auto min-h-0 flex-1">
-				<div className="mt-4 mb-2 flex items-center">
-					<div className="flex-4 font-semibold">Items to be checked</div>
-					<div className="flex-2">Criteria</div>
-					<div className="flex-1 input cursor-default border-0">Status</div>
-					<div className="flex-1 input cursor-default border-0">Remarks</div>
-					<div className="flex-2 opacity-50">Last Checked</div>
-					<div className="flex-2 opacity-50 text-right">Checked | Verified</div>
+				<div className={clsx(gridClass, "mt-4 mb-2 font-semibold")}>
+					<div>Items to be checked</div>
+					<div>Criteria</div>
+					<div>Status</div>
+					<div>Remarks</div>
+					<div className="opacity-50 text-right">Checked Status</div>
 				</div>
 				<div>
 					{fields.map((field, index) => {
@@ -126,6 +128,8 @@ export default function ChecklistItemsForm({
 						const isDisabled = false;
 						const name = items[index]?.name;
 						const scheduleName = items[index]?.schedule_name;
+						const inputType = items[index]?.input_type;
+						const allowedValues = items[index]?.allowed_values;
 						const criteria = items[index]?.criteria;
 						const checkedAt = items[index]?.checked_at;
 						const createdBy = items[index]?.created_by;
@@ -139,17 +143,15 @@ export default function ChecklistItemsForm({
 
 						return (
 							<div
-								className={clsx("flex items-center", {
-									"bg-base-200": index % 2 === 0,
-								})}
+								className={clsx(gridClass, { "bg-base-200": index % 2 === 0 })}
 								key={field.id}
 							>
-								<label className="flex-4">
-									<span className="mr-1 opacity-50">{scheduleName} | </span>
+								<label className="flex flex-col py-1">
 									<span>{name}</span>
+									<span className="text-xs opacity-75">{scheduleName}</span>
 								</label>
 
-								<div className="flex-2">
+								<div className="">
 									<span className="">{criteria}</span>
 								</div>
 
@@ -160,50 +162,101 @@ export default function ChecklistItemsForm({
 									{...register(`items.${index}.checklist_item_id`)}
 								/>
 
-								<input
-									disabled={isDisabled}
-									className="input bg-transparent flex-1"
-									{...register(`items.${index}.item_status`, {
-										// required: !isDisabled && "Status is required",
-									})}
-								/>
+								{inputType === "select" ? (
+									(() => {
+										const popoverId = `popover-item-${index}`;
+										const anchorName = `--anchor-item-${index}`;
+										const watchedStatus = watchItems[index]?.item_status;
+
+										return (
+											<div className="relative">
+												<button
+													type="button"
+													disabled={isDisabled}
+													popoverTarget={popoverId}
+													style={{ anchorName }}
+													className="btn btn-sm border-0 w-full text-left"
+												>
+													{watchedStatus || (
+														<span className="opacity-40">Select...</span>
+													)}
+												</button>
+
+												<ul
+													id={popoverId}
+													popover="auto"
+													style={{ positionAnchor: anchorName }}
+													className="dropdown menu rounded-box bg-base-100 shadow-sm z-50 not-[&:popover-open]:hidden"
+												>
+													{(Array.isArray(allowedValues)
+														? allowedValues
+														: JSON.parse(allowedValues || "[]")
+													).map((val) => (
+														<li key={val}>
+															<a
+																onClick={() => {
+																	setValue(`items.${index}.item_status`, val);
+																	document
+																		.getElementById(popoverId)
+																		?.hidePopover?.();
+																}}
+															>
+																{val}
+															</a>
+														</li>
+													))}
+												</ul>
+											</div>
+										);
+									})()
+								) : (
+									<input
+										disabled={isDisabled}
+										className="input bg-transparent"
+										type={inputType === "number" ? "number" : "text"}
+										step={inputType === "number" ? "any" : undefined}
+										{...register(`items.${index}.item_status`)}
+									/>
+								)}
 
 								<input
 									disabled={isDisabled}
-									className="input bg-transparent flex-1"
+									className="input bg-transparent"
 									{...register(`items.${index}.remarks`, {})}
 								/>
 
-								<div className="flex-2 flex gap-1 items-center">
-									<div className="opacity-50 text-xs">
-										{formatTimestamp(checkedAt)}
-									</div>
+								<div className="flex flex-col text-[10px]">
+									<div className="flex gap-1 justify-end">
+										<div className="opacity-50 ">
+											{formatTimestamp(checkedAt)}
+										</div>
 
-									<div className="text-xs">
-										{!!isDue && <span className="text-yellow-600">due</span>}
-										{!isDue && !!hasNoSchedule && (
-											<span className="opacity-50">no schedule</span>
+										<div className="">
+											{!!isDue && <span className="text-yellow-600">due</span>}
+											{!isDue && !!hasNoSchedule && (
+												<span className="opacity-50">no schedule</span>
+											)}
+											{!isDue && !hasNoSchedule && (
+												<FaCheckCircle className="text-green-600" />
+											)}
+										</div>
+
+										{errors.items?.[index]?.item_status && (
+											<p className="text-warning">
+												{errors.items[index]?.item_status.message}
+											</p>
 										)}
-										{!isDue && !hasNoSchedule && (
-											<FaCheckCircle className="text-green-600" />
+										{errors.items?.[index]?.remarks && (
+											<p className="text-warning">
+												{errors.items[index]?.remarks.message}
+											</p>
 										)}
 									</div>
-
-									{errors.items?.[index]?.item_status && (
-										<p className="text-warning">
-											{errors.items[index]?.item_status.message}
-										</p>
-									)}
-									{errors.items?.[index]?.remarks && (
-										<p className="text-warning">
-											{errors.items[index]?.remarks.message}
-										</p>
-									)}
-								</div>
-								<div className="text-right flex-2 text-xs opacity-75 flex justify-end gap-1">
-									<span>{createdBy?.FIRSTNAME || "unknown"}</span>
-									<span className="opacity-50">|</span>
-									<span>{verifiedBy?.FIRSTNAME || "unknown"}</span>
+									<div className="text-right  opacity-75 flex justify-end gap-1">
+										<span>{createdBy?.FIRSTNAME || "unknown"}</span>
+										<span className="opacity-50">|</span>
+										<span>{verifiedBy?.FIRSTNAME || "unknown"}</span>
+									</div>
 								</div>
 							</div>
 						);

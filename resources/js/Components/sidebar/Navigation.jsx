@@ -55,6 +55,14 @@ export default function NavLinks({ isCollapse }) {
 				isIconOnly={isCollapse}
 			/>
 
+			<SidebarLink
+				href={route("asset-health")}
+				label="Asset Health Board"
+				icon={<LuLayoutDashboard className="w-full h-full" />}
+				notifications={5}
+				isIconOnly={isCollapse}
+			/>
+
 			<Dropdown
 				label="Submitted Forms List"
 				icon={<FaFileAlt className="w-full h-full" />}

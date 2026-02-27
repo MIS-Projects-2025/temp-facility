@@ -1,9 +1,116 @@
 import PieChartWithNeedle from "@/Components/Chart/Speedometer";
+import STATUS_CONFIG from "@/Constants/checkItemStatusConfig";
+import formatFriendlyDate from "@/Utils/formatFriendlyDate";
 import formatPastDateTimeLabel from "@/Utils/formatPastDateTimeLabel";
 import { Head, usePage } from "@inertiajs/react";
 import clsx from "clsx";
 import { useState } from "react";
+import { FaCheckCircle, FaMinusCircle, FaTimes } from "react-icons/fa";
+import { TbAlertTriangle } from "react-icons/tb";
 import { Tooltip } from "react-tooltip";
+
+const ASSETS_CATEGORIES = [
+	{
+		key: "assets_complete",
+		label: "Complete",
+		description: "All due items checked",
+		color: "text-emerald-600",
+		bg: "bg-emerald-500/2",
+		border: "border-emerald-200/50",
+		indicator: "bg-emerald-500",
+		barColor: "bg-emerald-400",
+		icon: <FaCheckCircle className="w-5 h-5" />,
+	},
+	{
+		key: "assets_partial",
+		label: "Partial",
+		description: "Some items still due",
+		color: "text-amber-600",
+		bg: "bg-amber-500/2",
+		border: "border-amber-200/50",
+		indicator: "bg-amber-500",
+		barColor: "bg-amber-400",
+		icon: <TbAlertTriangle className="w-5 h-5" />,
+	},
+	{
+		key: "assets_not_started",
+		label: "Not Started",
+		description: "No items checked yet",
+		color: "text-red-600",
+		bg: "bg-red-500/2",
+		border: "border-red-200/50",
+		indicator: "bg-red-500",
+		barColor: "bg-red-400",
+		icon: <FaTimes className="w-5 h-5" />,
+	},
+	{
+		key: "assets_overdue",
+		label: "Overdue",
+		description: "Due date has passed",
+		color: "text-slate-500",
+		bg: "bg-slate-500/2",
+		border: "border-slate-200/50",
+		indicator: "bg-slate-400",
+		barColor: "bg-slate-300",
+		icon: <FaMinusCircle className="w-5 h-5" />,
+	},
+];
+
+function StatCard({ statusKey, count }) {
+	const config = STATUS_CONFIG[statusKey];
+	const Icon = config?.icon;
+
+	if (!config) return null;
+
+	return (
+		<div
+			style={{ border: `1px solid ${config.color}22` }}
+			className={clsx(
+				`h-full p-2 flex flex-col justify-between gap-1 relative overflow-hidden transition-all duration-300 cursor-default`,
+				config.bgClass,
+			)}
+			onMouseEnter={(e) => {
+				e.currentTarget.style.borderColor = `${config.color}66`;
+			}}
+			onMouseLeave={(e) => {
+				e.currentTarget.style.borderColor = `${config.color}22`;
+			}}
+		>
+			<div
+				style={{
+					background: config.color,
+					top: -40,
+					right: -40,
+				}}
+				className="absolute w-18 h-28 rounded-full opacity-[0.06] blur-3xl pointer-events-none"
+			/>
+
+			<div className="flex justify-between items-center">
+				<div style={{ color: config.color }} className="shrink-0">
+					{Icon && <Icon size={30} />}
+				</div>
+				<div
+					className={clsx(
+						"text-[42px] font-semibold text-base-content leading-none tracking-tight",
+						{
+							"opacity-25": count === 0,
+						},
+					)}
+					style={{ fontFamily: "'DM Mono', monospace" }}
+				>
+					{String(count)}
+				</div>
+			</div>
+
+			<div
+				className="mt-1.5 text-[13px] text-base-content text-center font-medium capitalize tracking-wide"
+				style={{ fontFamily: "'DM Sans', sans-serif" }}
+			>
+				{config.label}
+			</div>
+		</div>
+	);
+}
 
 // ─── Color tokens (should match your CSS variables) ──────────────────────────
 const statusColors = {
@@ -24,7 +131,7 @@ function parseRunningHours(raw) {
 function ScheduleBadge({ isNoSchedule, isDue }) {
 	if (isNoSchedule) {
 		return (
-			<span className="inline-flex items-center gap-1 text-xs px-1.5 py-0.5 bg-base-200 text-base-content/50">
+			<span className="inline-flex items-center text-xs bg-base-200 text-base-content/50">
 				<span className="text-[10px]">—</span> no schedule
 			</span>
 		);
@@ -32,8 +139,8 @@ function ScheduleBadge({ isNoSchedule, isDue }) {
 
 	if (isDue) {
 		return (
-			<span className="inline-flex items-center gap-1 text-xs px-1.5 py-0.5 text-red-600 animate-pulse">
-				<span>⚠</span> overdue
+			<span className="inline-flex items-center text-xs text-red-600 animate-pulse">
+				<span>⚠</span>
 			</span>
 		);
 	}
@@ -41,9 +148,36 @@ function ScheduleBadge({ isNoSchedule, isDue }) {
 	return null;
 }
 
+function PowerStatusBadge({ status }) {
+	const normalized = status?.toLowerCase();
+	const isRunning = normalized === "running";
+	const isUnknown = normalized === "unknown";
+	const isStandby = normalized === "stand by" || normalized === "standby";
+
+	return (
+		<div className="flex items-center gap-1">
+			<div className="relative flex items-center justify-center">
+				{isRunning && (
+					<span className="absolute inline-flex h-2 w-2 rounded-full bg-green-400 opacity-75 animate-ping" />
+				)}
+				<span
+					className={clsx("relative inline-flex h-2 w-2 rounded-full", {
+						"bg-green-400": isRunning,
+						"bg-gray-500": isUnknown,
+						"bg-yellow-400": isStandby,
+					})}
+				/>
+			</div>
+		</div>
+	);
+}
+
 // ─── Single speedometer card ──────────────────────────────────────────────────
-function SpeedometerCard({ entry, speedometerData, maxValue }) {
+function SpeedometerCard({ entry, speedometerData, maxValue, power }) {
+	console.log("🚀 ~ SpeedometerCard ~ power:", power);
 	const { is_no_schedule, is_due } = entry;
+	const powerStatus = power?.item_status || "unknown";
+	const powerStatusLastUpdated = power?.checked_at || null;
 	const hours = parseRunningHours(entry.item_status);
 	const isInvalid = hours === null;
 	const needleValue = isInvalid ? 0 : Math.min(hours, maxValue);
@@ -73,6 +207,11 @@ function SpeedometerCard({ entry, speedometerData, maxValue }) {
 				is_no_schedule && "opacity-60",
 			)}
 		>
+			<div className="absolute top-2 left-2 flex flex-col gap-1">
+				<PowerStatusBadge status={powerStatus} />
+				<ScheduleBadge isNoSchedule={is_no_schedule} isDue={is_due} />
+			</div>
+
 			<PieChartWithNeedle
 				outerRadius={30}
 				innerRadius={25}
@@ -97,14 +236,10 @@ function SpeedometerCard({ entry, speedometerData, maxValue }) {
 				<p className="text-xs font-semibold text-base-content truncate w-full">
 					{entry.asset_name}
 				</p>
-
-				<div className="absolute top-0 left-0 mt-1">
-					<ScheduleBadge isNoSchedule={is_no_schedule} isDue={is_due} />
-				</div>
 			</div>
 
 			{/* Tooltip */}
-			<Tooltip id={tooltipId} place="top" className="z-50 max-w-xs">
+			<Tooltip id={tooltipId} place="top" className="z-50 max-w-sm">
 				<div className="text-xs space-y-1">
 					{!!is_due && (
 						<p className="text-red-400 font-semibold">
@@ -112,16 +247,25 @@ function SpeedometerCard({ entry, speedometerData, maxValue }) {
 						</p>
 					)}
 					{!!is_no_schedule && (
-						<p className="text-gray-400 italic">
+						<p className="text-white italic">
 							No maintenance schedule configured
 						</p>
 					)}
-					<p className="text-sm font-semibold text-base-content truncate w-full">
+					<p className="text-sm font-semibold text-white truncate w-full">
 						<span>{entry.asset_name}</span>
-						<span className="text-xs opacity-50 text-base-content">
+						<span className="text-xs opacity-50 text-white">
 							@{entry.asset_location}
 						</span>
 					</p>
+
+					<div className="flex gap-1">
+						<PowerStatusBadge status={powerStatus} />
+						{powerStatus}
+						<span className="opacity-50">
+							last checked{" "}
+							{formatFriendlyDate(powerStatusLastUpdated, true) || "—"}
+						</span>
+					</div>
 
 					<p className="font-semibold">
 						encoded by: {checkerName} ({checkerTitle})
@@ -146,97 +290,28 @@ function SpeedometerGroup({ title, entries, speedometerData, maxValue }) {
 		<section className="border border-base-content/10 p-2">
 			<h2 className="text-base-content">{title}</h2>
 			<div className="flex gap-2">
-				{entries.map((entry, i) => (
-					<SpeedometerCard
-						key={`${entry.asset_name}-${i}`}
-						entry={entry}
-						speedometerData={speedometerData}
-						maxValue={maxValue}
-					/>
-				))}
+				{Object.entries(entries).map(([assetName, items]) => {
+					const runningHours = items.find(
+						(item) => item.item_name.toLowerCase() === "running hours",
+					);
+					const power = items.find(
+						(item) => item.item_name.toLowerCase() === "vacuum pump",
+					);
+
+					return (
+						<SpeedometerCard
+							key={assetName}
+							entry={runningHours}
+							speedometerData={speedometerData}
+							maxValue={maxValue}
+							power={power}
+						/>
+					);
+				})}
 			</div>
 		</section>
 	);
 }
-
-const CATEGORIES = [
-	{
-		key: "assets_complete",
-		label: "Complete",
-		description: "All due items checked",
-		color: "text-emerald-600",
-		bg: "bg-emerald-500/2",
-		border: "border-emerald-200/50",
-		indicator: "bg-emerald-500",
-		barColor: "bg-emerald-400",
-		icon: (
-			<svg viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5">
-				<path
-					fillRule="evenodd"
-					d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z"
-					clipRule="evenodd"
-				/>
-			</svg>
-		),
-	},
-	{
-		key: "assets_partial",
-		label: "Partial",
-		description: "Some items still due",
-		color: "text-amber-600",
-		bg: "bg-amber-500/2",
-		border: "border-amber-200/50",
-		indicator: "bg-amber-500",
-		barColor: "bg-amber-400",
-		icon: (
-			<svg viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5">
-				<path
-					fillRule="evenodd"
-					d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 5a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 5zm0 9a1 1 0 100-2 1 1 0 000 2z"
-					clipRule="evenodd"
-				/>
-			</svg>
-		),
-	},
-	{
-		key: "assets_not_started",
-		label: "Not Started",
-		description: "No items checked yet",
-		color: "text-red-600",
-		bg: "bg-red-500/2",
-		border: "border-red-200/50",
-		indicator: "bg-red-500",
-		barColor: "bg-red-400",
-		icon: (
-			<svg viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5">
-				<path
-					fillRule="evenodd"
-					d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.28 7.22a.75.75 0 00-1.06 1.06L8.94 10l-1.72 1.72a.75.75 0 101.06 1.06L10 11.06l1.72 1.72a.75.75 0 101.06-1.06L11.06 10l1.72-1.72a.75.75 0 00-1.06-1.06L10 8.94 8.28 7.22z"
-					clipRule="evenodd"
-				/>
-			</svg>
-		),
-	},
-	{
-		key: "assets_overdue",
-		label: "Overdue",
-		description: "Due date has passed",
-		color: "text-slate-500",
-		bg: "bg-slate-500/2",
-		border: "border-slate-200/50",
-		indicator: "bg-slate-400",
-		barColor: "bg-slate-300",
-		icon: (
-			<svg viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5">
-				<path
-					fillRule="evenodd"
-					d="M10 18a8 8 0 100-16 8 8 0 000 16zM6.75 9.25a.75.75 0 000 1.5h6.5a.75.75 0 000-1.5h-6.5z"
-					clipRule="evenodd"
-				/>
-			</svg>
-		),
-	},
-];
 
 // ─── Asset row inside expanded list ──────────────────────────────────────────
 function AssetRow({ asset, color, barColor }) {
@@ -380,7 +455,7 @@ function AssetDueCategories({ assets_due = mockData }) {
 	return (
 		<section className="space-y-2">
 			<div className="grid grid-cols-2 gap-2 lg:grid-cols-4">
-				{CATEGORIES.map((category) => (
+				{ASSETS_CATEGORIES.map((category) => (
 					<CategoryCard
 						key={category.key}
 						category={category}
@@ -395,8 +470,8 @@ function AssetDueCategories({ assets_due = mockData }) {
 // ─── Dashboard ────────────────────────────────────────────────────────────────
 export default function Dashboard() {
 	const {
-		vacuum_latest_running_hours,
-		air_compressor_latest_running_hours,
+		vacuum_latest_results,
+		air_compressor_latest_result,
 		vacuum_running_hours_ok,
 		assets_due,
 		unverified_today,
@@ -407,16 +482,21 @@ export default function Dashboard() {
 		air_compressor_running_hours_ok,
 		air_compressor_running_hours_warning,
 		air_compressor_running_hours_danger,
+		all_latest_status_results,
 	} = usePage().props;
+	console.log(
+		"🚀 ~ Dashboard ~ all_latest_status_results:",
+		all_latest_status_results,
+	);
 	console.log("🚀 ~ Dashboard ~ checklists_overview:", checklists_overview);
 	console.log("🚀 ~ Dashboard ~ assets_due:", assets_due);
 	console.log(
 		"🚀 ~ Dashboard ~ vacuum_latest_running_hours:",
-		vacuum_latest_running_hours,
+		vacuum_latest_results,
 	);
 	console.log(
 		"🚀 ~ Dashboard ~ air_compressor_latest_running_hours:",
-		air_compressor_latest_running_hours,
+		air_compressor_latest_result,
 	);
 
 	const vacuumMax =
@@ -460,7 +540,7 @@ export default function Dashboard() {
 		},
 	];
 
-	const total = CATEGORIES.reduce(
+	const total = ASSETS_CATEGORIES.reduce(
 		(sum, cat) => sum + (assets_due[cat.key]?.length ?? 0),
 		0,
 	);
@@ -486,9 +566,17 @@ export default function Dashboard() {
 							<div className="flex justify-center">
 								<div className="font-bold flex gap-1 items-center text-primary">
 									<div className="text-[30px]">{unverified_total}</div>
-									<div className="">unverified overall</div>
+									<div className="">unverified checklist</div>
 								</div>
 							</div>
+							{/* <div className="flex justify-center">
+								<div className="font-bold flex gap-1 items-center text-primary">
+									<div className="text-[30px]">
+										{all_latest_no_good_results?.length ?? 0}
+									</div>
+									<div className="">"No Good" results</div>
+								</div>
+							</div> */}
 							{/* <div className="font-bold text-primary text-center">
 								{unverified_today}, today
 							</div> */}
@@ -497,19 +585,47 @@ export default function Dashboard() {
 					</div>
 				</div>
 
-				<SpeedometerGroup
-					title="Vacuum Running Hours"
-					entries={vacuum_latest_running_hours}
-					speedometerData={vacuumSpeedometer}
-					maxValue={vacuumMax}
-				/>
+				<div className="grid grid-cols-2 w-full gap-2">
+					<div>
+						<div className="flex justify-between items-end">
+							<h1>Asset Status</h1>
+							<div className="opacity-50 text-xs">Unique assets per status</div>
+						</div>
+						<div
+							style={{
+								display: "grid",
+								gridTemplateColumns: "repeat(6, minmax(50px, 1fr))",
+								gridTemplateRows: "repeat(2, auto)",
+								gap: "8px",
+							}}
+						>
+							{all_latest_status_results?.map((status, i) => (
+								<div key={i} style={{ transitionDelay: `${i * 60}ms` }}>
+									<StatCard
+										statusKey={(status?.item_status ?? "").toLowerCase()}
+										count={status?.asset_count ?? 0}
+									/>
+								</div>
+							))}
+						</div>
+					</div>
 
-				<SpeedometerGroup
-					title="Air Compressor Running Hours"
-					entries={air_compressor_latest_running_hours}
-					speedometerData={airCompressorSpeedometer}
-					maxValue={airCompressorMax}
-				/>
+					<div>
+						<h1>Running Hours</h1>
+						<SpeedometerGroup
+							title="Vacuum"
+							entries={vacuum_latest_results}
+							speedometerData={vacuumSpeedometer}
+							maxValue={vacuumMax}
+						/>
+						<SpeedometerGroup
+							title="Air Compressor"
+							entries={air_compressor_latest_result}
+							speedometerData={airCompressorSpeedometer}
+							maxValue={airCompressorMax}
+						/>
+					</div>
+				</div>
 			</div>
 		</>
 	);

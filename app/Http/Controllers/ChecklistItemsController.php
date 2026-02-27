@@ -15,6 +15,7 @@ use Illuminate\Database\QueryException;
 use App\Traits\MassDeletesByIds;
 use App\Constants\DueScheduleQuery;
 use App\Services\BulkUpserter;
+use App\Models\Checklist;
 
 class ChecklistItemsController extends Controller
 {
@@ -22,18 +23,21 @@ class ChecklistItemsController extends Controller
 
   public function index(Request $request)
   {
-    $checklistItems = ChecklistItem::query()
-      ->with('checklist')
-      ->get();
+    $allChecklists = Checklist::all();
+    $selectedChecklistId = $request->input('checklist_id', $allChecklists->first()?->id);
+    Log::info("selectedChecklistId: " . $selectedChecklistId);
+    $selectedChecklist = Checklist::with('checklistItems.item')->find($selectedChecklistId);
 
     if ($request->wantsJson()) {
       return response()->json([
-        'checklistItems' => $checklistItems,
+        'checklists' => $allChecklists,
+        'selectedChecklist' => $selectedChecklist
       ]);
     }
 
-    return Inertia::render('ChecklistItemsList', [
-      'checklistItems' => $checklistItems,
+    return Inertia::render('ChecklistItemList', [
+      'checklists' => $allChecklists,
+      'selectedChecklist' => $selectedChecklist
     ]);
   }
 
@@ -107,6 +111,8 @@ class ChecklistItemsController extends Controller
         'ci.id',
         'i.name',
         'ci.item_id',
+        'ci.input_type',
+        'ci.allowed_values',
         'cs.verified_by',
         'cs.created_by',
         'ci.criteria',
@@ -169,6 +175,9 @@ class ChecklistItemsController extends Controller
           ->where('checklist_id', $fields['checklist_id'] ?? null)
           ->ignore($id),
       ],
+      // might TODO: checkbox can also be used. So how can you enforced 2 values? another column for checkbox_value?
+      'input_type'     => ['required', 'string', Rule::in(['text', 'number', 'select'])],
+      'allowed_values' => 'nullable|array',
       'schedule_id' => fn($id) => [
         'sometimes',
         'nullable',

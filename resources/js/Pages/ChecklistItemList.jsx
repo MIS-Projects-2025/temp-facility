@@ -2,15 +2,16 @@ import BulkErrors from "@/Components/BulkErrors";
 import ChangeReviewModal from "@/Components/ChangeReviewModal";
 import DeleteModal from "@/Components/DeleteModal";
 import MultiSelectSearchableDropdown from "@/Components/MultiSelectSearchableDropdown";
+import ArrayCell from "@/Components/tanStackTable/ArrayCell";
 import { createClickableCell } from "@/Components/tanStackTable/ClickableCell";
+import DropdownCell from "@/Components/tanStackTable/DropDownCell";
 import ReadOnlyColumns from "@/Components/tanStackTable/ReadOnlyColumn";
 import TanstackTable from "@/Components/tanStackTable/TanstackTable";
 import { useEditableTable } from "@/Hooks/useEditableTable";
 import { useFetch } from "@/Hooks/useFetch";
 import { useMutation } from "@/Hooks/useMutation";
-import { useChecklistStore } from "@/Store/checklistStore";
-import { router } from "@inertiajs/react";
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import { router, usePage } from "@inertiajs/react";
+import React, { useCallback, useRef, useState } from "react";
 import toast from "react-hot-toast";
 import { FaCaretDown, FaPlus, FaSave } from "react-icons/fa";
 
@@ -20,16 +21,15 @@ const scheduleModalID = "schedule-modal";
 const saveChangeIDModal = "save_change__checklist_item_modal_id";
 
 const ChecklistItemList = () => {
-	const { data: checklists, isLoading, fetchChecklists } = useChecklistStore();
+	const { checklists, selectedChecklist } = usePage().props;
+	const checklistItems = selectedChecklist?.checklist_items;
+	console.log("🚀 ~ ChecklistItemList ~ selectedChecklist:", selectedChecklist);
+	console.log("🚀 ~ ChecklistItemList ~ checklists:", checklists);
+	console.log("🚀 ~ ChecklistItemList ~ checklistItems:", checklistItems);
 
-	const [selectedChecklist, setSelectedChecklist] = React.useState(null);
 	const [selectedEditItem, setSelectedEditItem] = useState([[]]);
 	const [selectedCell, setSelectedCell] = useState(null);
 	const [checkItemSearchInput, setCheckItemSearchInput] = useState("");
-
-	useEffect(() => {
-		fetchChecklists();
-	}, []);
 
 	const {
 		mutate,
@@ -47,19 +47,6 @@ const ChecklistItemList = () => {
 		cancel: cancelCheckItems,
 		fetch: fetchCheckItems,
 	} = useFetch(route("api.check-items.index"), {
-		auto: false,
-	});
-
-	const {
-		data: checklistItems,
-		isLoading: isChecklistItemsLoading,
-		errorMessage: ChecklistItemsErrorMessage,
-		fetch: checklistItemsFetch,
-		abort: checklistItemsAbort,
-	} = useFetch(route("api.checklist-items.all-check-items"), {
-		params: {
-			checklist_id: selectedChecklist?.id || "",
-		},
 		auto: false,
 	});
 
@@ -118,6 +105,32 @@ const ChecklistItemList = () => {
 				size: 340,
 			},
 			{
+				accessorKey: "input_type",
+				header: () => "Input Type",
+				size: 140,
+				cell: (props) => (
+					<DropdownCell {...props} options={["text", "number", "select"]} />
+				),
+			},
+			{
+				accessorKey: "allowed_values",
+				header: "Allowed Values",
+				size: 140,
+				cell: (props) => {
+					const inputType = props.row.original.input_type;
+
+					if (inputType !== "select") {
+						return (
+							<span className="opacity-30 text-xs px-2 cursor-not-allowed">
+								—
+							</span>
+						);
+					}
+
+					return <ArrayCell {...props} />;
+				},
+			},
+			{
 				accessorKey: "schedule.schedule_name",
 				header: "Schedule",
 				accessorFn: (row) => row.schedule?.schedule_name,
@@ -155,6 +168,11 @@ const ChecklistItemList = () => {
 		changes,
 	} = useEditableTable(checklistItems || [], columns, {
 		isMultipleSelection: false,
+		createEmptyRow: () => ({
+			checklist_id: selectedChecklist?.id,
+			input_type: "text",
+			allowed_values: [],
+		}),
 	});
 
 	const {
@@ -208,9 +226,6 @@ const ChecklistItemList = () => {
 	};
 
 	function handleEditedItemClick(row, value, column) {
-		console.log("🚀 ~ ggggggggggggggggggg ~ row:", row);
-		console.log("🚀 ~ handleEditedItemClick ~ value:", value);
-		console.log("🚀 ~ handleEditedItemClick ~ column:", column);
 		const rootKey = column?.columnDef?.accessorKey?.split(".")[0];
 		setSelectedCell({ rootKey, row, value, column });
 		setSelectedEditItem([value]);
@@ -220,6 +235,7 @@ const ChecklistItemList = () => {
 	const deleteModalRef = useRef(null);
 
 	const saveChanges = async () => {
+		console.log("🚀 ~ saveChanges ~ editedRows:", editedRows);
 		const payload = Object.entries(editedRows).map(([rowId, row]) => {
 			const { schedule, item, ...rest } = row;
 			return {
@@ -236,7 +252,6 @@ const ChecklistItemList = () => {
 				method: "PATCH",
 				body: payload,
 			});
-			checklistItemsFetch();
 			document.getElementById(saveChangeIDModal).close();
 
 			toast.success("Changes updated successfully!");
@@ -248,25 +263,6 @@ const ChecklistItemList = () => {
 			console.error(error);
 		}
 	};
-
-	React.useEffect(() => {
-		console.log("editedRows", editedRows);
-	}, [editedRows]);
-
-	React.useEffect(() => {
-		if (!checklists || checklists?.length === 0) {
-			return;
-		}
-
-		setSelectedChecklist(checklists?.checklistMap[0] || null);
-	}, [checklists]);
-
-	React.useEffect(() => {
-		checklistItemsFetch();
-		return () => {
-			checklistItemsAbort();
-		};
-	}, [selectedChecklist]);
 
 	const handleSaveClick = () => {
 		const changes = getChanges();
@@ -287,37 +283,6 @@ const ChecklistItemList = () => {
 		useModal: true,
 		disableSelectedContainer: true,
 		paginated: true,
-	};
-
-	const handleAddNewChecklistItem = () => {
-		setData((prevData) => {
-			return [
-				...prevData,
-				{
-					id: `new-${table.getRowCount() + 1}`,
-					name: null,
-					checklist_id: selectedChecklist?.id,
-					criteria: null,
-					schedule: null,
-					created_at: null,
-					updated_at: null,
-				},
-			];
-		});
-		setEditedRows((prevData) => {
-			return {
-				...prevData,
-				[`new-${table.getRowCount() + 1}`]: {
-					id: `new-${table.getRowCount() + 1}`,
-					name: null,
-					checklist_id: selectedChecklist?.id,
-					criteria: null,
-					schedule: null,
-					created_at: null,
-					updated_at: null,
-				},
-			};
-		});
 	};
 
 	return (
@@ -353,7 +318,7 @@ const ChecklistItemList = () => {
 				<div className="flex gap-4">
 					<MultiSelectSearchableDropdown
 						options={
-							checklists?.checklistArray?.map((checklist) => ({
+							checklists?.map((checklist) => ({
 								value: checklist.name,
 								label: checklist.form_control_no,
 								original: checklist,
@@ -361,7 +326,13 @@ const ChecklistItemList = () => {
 						}
 						onChange={(value) => {
 							console.log("🚀 ~ ChecklistList ~ value:", value);
-							setSelectedChecklist(value[0]);
+							router.reload({
+								data: {
+									checklist_id: value[0]?.id,
+								},
+								preserveState: true,
+								preserveScroll: true,
+							});
 						}}
 						returnKey="original"
 						defaultSelectedOptions={
@@ -389,7 +360,6 @@ const ChecklistItemList = () => {
 						disableSelectedContainer
 						disableClearSelection
 						disableTooltip
-						isLoading={isLoading}
 						itemName="Checklist List"
 						prompt="Select Checklist"
 						contentClassName="h-50"
@@ -402,7 +372,7 @@ const ChecklistItemList = () => {
 					{<BulkErrors errors={mutateErrorData?.data || []} />}
 				</div>
 
-				<TanstackTable table={table} isTableLoading={isChecklistItemsLoading} />
+				<TanstackTable table={table} />
 
 				<ChangeReviewModal
 					modalID={saveChangeIDModal}

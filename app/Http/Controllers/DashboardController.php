@@ -55,17 +55,26 @@ class DashboardController extends Controller
 
         $CheckItemsResultsRepo = new CheckItemsResultRepository();
 
-        $vacuumLatestRunningHours = $CheckItemsResultsRepo->latestRunningHoursByChecklist($vacuumChecklistId);
+        $vacuumLatestResults = $CheckItemsResultsRepo->getlatestCheckItemsStatusByChecklist($vacuumChecklistId);
+        $airCompressorLatestResults = $CheckItemsResultsRepo->getlatestCheckItemsStatusByChecklist($airCompressorChecklistId);
+
+        // $vacuumLatestResults = $vacuumLatestResults
+        //     ->map(
+        //         fn($items) =>
+        //         $items->filter(fn($item) => in_array(strtolower($item->item_name), ['running hours', 'Vacuum Pump']))->values()
+        //     )
+        //     ->filter(fn($items) => $items->isNotEmpty());
+
+        $allLatestStatusResults = $CheckItemsResultsRepo->getAllStatusResults();
         $assetsOverview = self::getOverallChecklistState();
         $checklistsOverview = (new ChecklistsService())->getAllChecklistsWithDueAssets();
-        $airCompressorLatestRunningHours = $CheckItemsResultsRepo->latestRunningHoursByChecklist($airCompressorChecklistId);
 
         $unverifiedToday = ChecklistInstance::whereNull('verified_at')->whereDate('created_at', Carbon::today())->count();
         $unverifiedTotal = ChecklistInstance::whereNull('verified_at')->count();
 
         return Inertia::render('Dashboard', [
-            'vacuum_latest_running_hours' => $vacuumLatestRunningHours,
-            'air_compressor_latest_running_hours' => $airCompressorLatestRunningHours,
+            'vacuum_latest_results' => $vacuumLatestResults,
+            'air_compressor_latest_result' => $airCompressorLatestResults,
             'vacuum_running_hours_ok' => RunningHours::VACUUM_RUNNING_HOURS_OK,
             'vacuum_running_hours_warning' => RunningHours::VACUUM_RUNNING_HOURS_WARNING,
             'vacuum_running_hours_danger' => RunningHours::VACUUM_RUNNING_HOURS_DANGER,
@@ -76,7 +85,9 @@ class DashboardController extends Controller
             'assets_due' => $assetsOverview,
             'checklists_overview' => $checklistsOverview,
             'unverified_today' => $unverifiedToday,
-            'unverified_total' => $unverifiedTotal
+            'unverified_total' => $unverifiedTotal,
+
+            'all_latest_status_results' => $allLatestStatusResults
         ]);
     }
 }

@@ -21,6 +21,8 @@ use App\Http\Controllers\PerformSDSMonitoringController;
 use App\Http\Controllers\PerformRestroomMonitoringController;
 use App\Http\Controllers\ChecklistInstanceController;
 use App\Http\Controllers\AssetPmSchedulesController;
+use App\Http\Controllers\ChecklistItemsController;
+use App\Http\Controllers\AssetHealthBoardController;
 use App\Http\Controllers\HazardousWasteTurnOverLogSheetController;
 use Inertia\Inertia;
 
@@ -40,6 +42,10 @@ Route::patch("/change-admin-role", [AdminController::class, 'changeAdminRole'])-
 
 Route::middleware(AuthMiddleware::class . ':dashboard')->group(function () {
     Route::get("/", [DashboardController::class, 'index'])->name('dashboard');
+});
+
+Route::middleware(AuthMiddleware::class . ':asset-health')->group(function () {
+    Route::get("/asset-health", [AssetHealthBoardController::class, 'index'])->name('asset-health');
 });
 
 Route::middleware(AuthMiddleware::class . ':utility-trash')->group(function () {
@@ -111,7 +117,7 @@ Route::prefix('checklist')->name('checklist.')->group(
 Route::prefix('checklist-items')->name('checklist-items.')->group(
     function () {
         Route::middleware([])->group(function () {
-            Route::get("/", [ChecklistsController::class, 'viewChecklistItems'])->name('index');
+            Route::get("/", [ChecklistItemsController::class, 'index'])->name('index');
         });
         Route::middleware([])->group(function () {
             Route::get("/create", [ChecklistsController::class, 'upsert'])->name('create');
