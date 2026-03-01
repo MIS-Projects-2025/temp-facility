@@ -143,6 +143,8 @@ Route::middleware([ApiAuthMiddleware::class])
         ->name('index');
       Route::get('/due', [AssetsController::class, 'getDueAssets'])
         ->name('due-assets');
+      Route::get('/due-with-items', [AssetsController::class, 'getDueAssetsWithItems'])
+        ->name('due-assets-with-items');
       Route::post('/add', [ChecklistAssetsController::class, 'store'])
         ->name('add');
       Route::delete('/{id}/delete', [ChecklistAssetsController::class, 'destroy'])

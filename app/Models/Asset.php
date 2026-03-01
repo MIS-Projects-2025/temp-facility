@@ -27,4 +27,16 @@ class Asset extends Model
   {
     return $this->belongsTo(Location::class, 'location_id');
   }
+
+  public function checklistItems()
+  {
+    return $this->hasManyThrough(
+      ChecklistItem::class,
+      ChecklistAssets::class,
+      'asset_id',
+      'checklist_id',
+      'id',
+      'checklist_id'
+    );
+  }
 }

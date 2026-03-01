@@ -51,4 +51,12 @@ class AssetsService
 
     return $assetsQuery;
   }
+
+  public function getDueAssetsWithItems($checklistId = null)
+  {
+    return $this->getDueAssetsQuery($checklistId)
+      ->with(['checklistItems' => function ($query) use ($checklistId) {
+        $query->when($checklistId, fn($q) => $q->where('checklist_id', $checklistId));
+      }]);
+  }
 }

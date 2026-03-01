@@ -248,4 +248,9 @@ class AssetsController extends Controller
       ], 404);
     }
   }
+
+  public function getDueAssetsWithItems()
+  {
+    return (new AssetsService())->getDueAssetsWithItems()->get();
+  }
 }
