@@ -16,8 +16,17 @@ class ChecklistItemResult extends Model
     'remarks',
     'item_status',
     'modified_by',
-    'modified_at',
+
     'checklist_instance_id',
+    'period_start',
+    'period_end',
+  ];
+
+  protected $casts = [
+    'checked_at'   => 'datetime',
+    'period_start' => 'datetime',
+    'period_end'   => 'datetime',
+    'modified_at'  => 'datetime',
   ];
 
   public function asset()

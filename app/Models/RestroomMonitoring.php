@@ -21,4 +21,9 @@ class RestroomMonitoring extends Model
   {
     return $this->belongsTo(Restroom::class, 'restroom_id', 'id');
   }
+
+  protected $casts = [
+    'created_at'  => 'datetime',
+    'updated_at'  => 'datetime',
+  ];
 }

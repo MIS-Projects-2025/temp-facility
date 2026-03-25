@@ -81,7 +81,7 @@ class LocationController extends Controller
     $entry = Location::create([
       ...$validated,
       'modified_by' => $user_id,
-      'modified_at' => Carbon::now(),
+
     ]);
 
     Cache::forget(CacheKeys::locationsAll());
@@ -111,7 +111,7 @@ class LocationController extends Controller
     $item->update([
       ...$validated,
       'modified_by' => $user_id,
-      'modified_at' => Carbon::now(),
+
     ]);
 
     Cache::forget(CacheKeys::locationsAll());

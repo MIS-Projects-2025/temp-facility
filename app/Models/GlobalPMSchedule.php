@@ -16,7 +16,7 @@ class GlobalPMSchedule extends Model
     'global_pm_id',
     'next_due_date',
     'modified_by',
-    'modified_at',
+
   ];
 
   protected $casts = [

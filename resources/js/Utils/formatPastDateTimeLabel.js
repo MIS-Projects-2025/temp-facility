@@ -1,24 +1,27 @@
-function isYesterday(date, now) {
-	const yesterday = new Date(now);
-	yesterday.setDate(now.getDate() - 1);
+function isYesterday(date, now, timezone = "local") {
+	const opts = { year: "numeric", month: "2-digit", day: "2-digit" };
+	if (timezone !== "local") opts.timeZone = timezone;
 
-	return (
-		date.getFullYear() === yesterday.getFullYear() &&
-		date.getMonth() === yesterday.getMonth() &&
-		date.getDate() === yesterday.getDate()
-	);
+	const dateStr = date.toLocaleDateString(undefined, opts);
+	const yesterdayDate = new Date(now);
+	yesterdayDate.setDate(now.getDate() - 1);
+	const yesterdayStr = yesterdayDate.toLocaleDateString(undefined, opts);
+
+	return dateStr === yesterdayStr;
 }
 
-function formatTime(date) {
-	return date
-		.toLocaleTimeString([], {
-			hour: "numeric",
-			minute: "2-digit",
-		})
-		.toLowerCase();
+function formatTime(date, timezone = "local") {
+	return date.toLocaleTimeString(undefined, {
+		hour: "2-digit",
+		minute: "2-digit",
+		...(timezone !== "local" && { timeZone: timezone }),
+	});
 }
 
-export default function formatPastDateTimeLabel(dateInput) {
+export default function formatPastDateTimeLabel(
+	dateInput,
+	{ timezone = "local" } = {},
+) {
 	if (!dateInput) return "";
 
 	const date = new Date(dateInput);
@@ -52,14 +55,17 @@ export default function formatPastDateTimeLabel(dateInput) {
 	}
 
 	// Yesterday
-	if (isYesterday(date, now)) {
-		return `Yesterday at ${formatTime(date)}`;
+	if (isYesterday(date, now, timezone)) {
+		return `Yesterday at ${formatTime(date, timezone)}`;
 	}
 
 	// This week (2–6 days)
 	if (diffDay < 7) {
-		const weekday = date.toLocaleDateString(undefined, { weekday: "long" });
-		return `Last ${weekday} at ${formatTime(date)}`;
+		const weekday = date.toLocaleDateString(undefined, {
+			weekday: "long",
+			...(timezone !== "local" && { timeZone: timezone }),
+		});
+		return `Last ${weekday} at ${formatTime(date, timezone)}`;
 	}
 
 	// Less than a month

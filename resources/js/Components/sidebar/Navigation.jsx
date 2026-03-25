@@ -8,6 +8,7 @@ import {
 	FaListAlt,
 	FaTools,
 	FaTrash,
+	FaUsers,
 } from "react-icons/fa";
 import { FaBiohazard, FaCubes, FaLocationDot, FaPlay } from "react-icons/fa6";
 import { GiChemicalDrop } from "react-icons/gi";
@@ -50,6 +51,13 @@ export default function NavLinks({ isCollapse }) {
 			<SidebarLink
 				href={route("dashboard")}
 				label="Dashboard"
+				icon={<LuLayoutDashboard className="w-full h-full" />}
+				isIconOnly={isCollapse}
+			/>
+
+			<SidebarLink
+				href={route("rh-temp-dashboard")}
+				label="RH Temp Dashboard"
 				icon={<LuLayoutDashboard className="w-full h-full" />}
 				isIconOnly={isCollapse}
 			/>
@@ -147,6 +155,11 @@ export default function NavLinks({ isCollapse }) {
 						href: route("global-pm.schedules.index"),
 						label: "Global PM Schedules",
 						icon: <FaTools className="w-full h-full" />,
+					},
+					{
+						href: route("checklist-approval-config.index"),
+						label: "Checklist Approvers",
+						icon: <FaUsers className="w-full h-full" />,
 					},
 				]}
 				isIconOnly={isCollapse}

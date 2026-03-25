@@ -61,7 +61,7 @@ class ChecklistItemSchedulesController extends Controller
     $entry = ChecklistItemSchedule::create([
       ...$validated,
       'modified_by' => $user_id,
-      'modified_at' => Carbon::now(),
+
     ]);
 
     return response()->json([
@@ -90,7 +90,7 @@ class ChecklistItemSchedulesController extends Controller
       $item->update([
         ...$validated,
         'modified_by' => $user_id,
-        'modified_at' => Carbon::now(),
+
       ]);
 
       return response()->json([

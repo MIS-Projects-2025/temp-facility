@@ -18,4 +18,9 @@ class Restroom extends Model
   {
     return $this->hasMany(Fixture::class, 'restroom_id', 'id');
   }
+
+  protected $casts = [
+    'created_at'  => 'datetime',
+    'updated_at'  => 'datetime',
+  ];
 }

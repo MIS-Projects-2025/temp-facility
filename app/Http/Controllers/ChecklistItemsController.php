@@ -15,6 +15,7 @@ use App\Traits\MassDeletesByIds;
 use App\Constants\DueScheduleQuery;
 use App\Services\BulkUpserter;
 use App\Models\Checklist;
+use App\Services\PeriodGeneratorService;
 
 class ChecklistItemsController extends Controller
 {
@@ -92,6 +93,109 @@ class ChecklistItemsController extends Controller
     );
   }
 
+  private function resolveEmployees($results)
+  {
+    $employeeIds = collect()
+      ->merge($results->pluck('created_by'))
+      ->merge($results->pluck('verified_by'))
+      ->filter()
+      ->unique();
+
+    $employees = Employee::whereIn('EMPLOYID', $employeeIds)
+      ->select('EMPLOYID', 'FIRSTNAME', 'JOB_TITLE', 'LASTNAME')
+      ->get()
+      ->keyBy('EMPLOYID');
+
+    return $results->transform(function ($item) use ($employees) {
+      $item->created_by  = $employees[$item->created_by] ?? null;
+      $item->verified_by = $employees[$item->verified_by] ?? null;
+      return $item;
+    });
+  }
+
+  public function getOverdueCheckItems(Request $request)
+  {
+    $assetId = $request->input('assetId');
+    $checklistId = $request->input('checklistId');
+
+    $latestResults = DB::table('checklist_item_results')
+      ->select(
+        'checklist_item_id',
+        'asset_id',
+        DB::raw('MAX(checked_at) as checked_at'),
+        DB::raw('MAX(id) as id')
+      )
+      ->where('asset_id', $assetId)
+      ->groupBy('checklist_item_id', 'asset_id');
+
+    $items = ChecklistItem::query()
+      ->from('checklist_items as ci')
+      ->with('entitySchedule.schedule')
+      ->select([
+        'ci.id',
+        'i.name',
+        'ci.item_id',
+        'ci.input_type',
+        'ci.allowed_values',
+        'cs.verified_by',
+        'cs.created_by',
+        'ci.criteria',
+        's.schedule_name',
+        's.id as schedule_id',
+      ])
+      ->join('check_items as i', 'ci.item_id', '=', 'i.id')
+      ->join('checklist_assets as ca', function ($join) use ($assetId) {
+        $join->on('ca.checklist_id', '=', 'ci.checklist_id')
+          ->where('ca.asset_id', $assetId);
+      })
+      ->leftJoin('entity_checklist_item_schedules as ecs', 'ecs.checklist_item_id', '=', 'ci.id')
+      ->leftJoin('schedules as s', 's.id', '=', 'ecs.schedule_id')
+      ->leftJoinSub($latestResults, 'latest', function ($join) {
+        $join->on('latest.checklist_item_id', '=', 'ci.id');
+      })
+      ->leftJoin('checklist_item_results as cir', 'cir.id', '=', 'latest.id')
+      ->leftJoin('checklist_instances as cs', 'cs.id', '=', 'cir.checklist_instance_id')
+      ->where('ci.checklist_id', $checklistId)
+      ->get();
+
+    Log::info("items" . json_encode($items));
+
+    $results = $items->flatMap(function ($item) use ($assetId) {
+      $schedule  = $item->schedule;
+      $lookback  = now('Asia/Manila')->subDays(90);
+      $anchor    = $lookback;
+
+      Log::info("anchor" . json_encode($anchor));
+      $periods = PeriodGeneratorService::generate($anchor, $schedule->toArray());
+      Log::info("periods" . json_encode($periods));
+      return collect($periods)
+        ->filter(fn($period) => $period[1]->isBefore(now()))
+        ->sortByDesc(fn($period) => $period[0])
+        ->take(5)
+        ->map(fn($period) => (object) [
+          'item_id'       => $item->id,
+          'name'          => $item->name,
+          'input_type'    => $item->input_type,
+          'allowed_values' => $item->allowed_values,
+          'verified_by'   => $item->verified_by,
+          'created_by'    => $item->created_by,
+          'checked_at'    => $item->checked_at,
+          'criteria'      => $item->criteria,
+          'schedule_name' => $item->schedule_name,
+          'is_no_schedule' => is_null($item->schedule_id),
+          'period_start'  => $period[0],
+          'period_end'    => $period[1],
+        ]);
+    });
+
+    Log::info("results", $results->toArray());
+
+    $results = self::resolveEmployees($results);
+    $results = $results->groupBy('item_id');
+
+    return response()->json($results);
+  }
+
   public function getScheduledCheckItems(Request $request)
   {
     $assetId = $request->input('assetId');
@@ -101,7 +205,8 @@ class ChecklistItemsController extends Controller
       ->select(
         'checklist_item_id',
         'asset_id',
-        DB::raw('MAX(checked_at) as checked_at')
+        DB::raw('MAX(checked_at) as checked_at'),
+        DB::raw('MAX(id) as id')
       )
       ->where('asset_id', $assetId)
       ->groupBy('checklist_item_id', 'asset_id');
@@ -123,6 +228,7 @@ class ChecklistItemsController extends Controller
         DB::raw("s.id IS NULL as is_no_schedule"),
       ])
       ->addSelect(DueScheduleQuery::dueRaw())
+      ->addSelect(DueScheduleQuery::overdueRaw())
       ->join('check_items as i', 'ci.item_id', '=', 'i.id')
       ->join('checklist_assets as ca', function ($join) use ($assetId) {
         $join->on('ca.checklist_id', '=', 'ci.checklist_id')
@@ -133,11 +239,7 @@ class ChecklistItemsController extends Controller
       ->leftJoinSub($latestResults, 'latest', function ($join) {
         $join->on('latest.checklist_item_id', '=', 'ci.id');
       })
-      ->leftJoin('checklist_item_results as cir', function ($join) {
-        $join->on('cir.checklist_item_id', '=', 'latest.checklist_item_id')
-          ->on('cir.asset_id', '=', 'latest.asset_id')
-          ->on('cir.checked_at', '=', 'latest.checked_at');
-      })
+      ->leftJoin('checklist_item_results as cir', 'cir.id', '=', 'latest.id')
       ->leftJoin('checklist_instances as cs', 'cs.id', '=', 'cir.checklist_instance_id')
       ->where('ci.checklist_id', $checklistId)
       ->orderBy('s.schedule_name')
@@ -145,21 +247,7 @@ class ChecklistItemsController extends Controller
 
     $results = $query->get();
 
-    $verifierIds = $results->pluck('created_by')
-      ->filter()
-      ->unique();
-
-    $employees = Employee::whereIn('EMPLOYID', $verifierIds)
-      ->select('EMPLOYID', 'FIRSTNAME', 'JOB_TITLE', 'LASTNAME')
-      ->get()
-      ->keyBy('EMPLOYID');
-
-
-    $results->transform(function ($item) use ($employees) {
-      $item->created_by = $employees[$item->created_by] ?? null;
-      $item->verified_by = $employees[$item->verified_by] ?? null;
-      return $item;
-    });
+    $results = self::resolveEmployees($results);
 
     return response()->json($results);
   }
@@ -246,7 +334,7 @@ class ChecklistItemsController extends Controller
     $entry = ChecklistItem::create([
       ...$validated,
       'modified_by' => $user_id,
-      'modified_at' => Carbon::now(),
+
     ]);
 
     return response()->json([
@@ -274,7 +362,7 @@ class ChecklistItemsController extends Controller
     $item->update([
       ...$validated,
       'modified_by' => $user_id,
-      'modified_at' => Carbon::now(),
+
     ]);
 
     return response()->json([

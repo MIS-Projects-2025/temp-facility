@@ -10,15 +10,11 @@ import { router, usePage } from "@inertiajs/react";
 import React, { useEffect, useRef, useState } from "react";
 import toast from "react-hot-toast";
 import { FaPlus, FaSave } from "react-icons/fa";
-import { MdOutlineDelete } from "react-icons/md";
 import SearchInput from "./SearchInput";
 
-//This is a dynamic row height example, which is more complicated, but allows for a more realistic table.
-//See https://tanstack.com/virtual/v3/docs/examples/react/table for a simpler fixed row height example.
 function LocationList() {
 	const deleteModalRef = useRef(null);
 
-	// The virtualizer will need a reference to the scrollable container element
 	const {
 		locations: serverLocations,
 		search: serverSearch,
@@ -127,9 +123,6 @@ function LocationList() {
 		isMultipleSelection: false,
 	});
 
-	// const handleAddNewLocation = () => {
-	//     router.visit(route("locations.create"));
-	// };
 	const saveChangeIDModal = "save_change_modal_id";
 
 	const handleSaveClick = () => {
@@ -171,11 +164,8 @@ function LocationList() {
 		});
 	};
 
-	// All important CSS styles are included as inline styles for this example. This is not recommended for your code.
 	return (
 		<div>
-			{/* <pre>{JSON.stringify(table.getState().rowSelection, null, 2)}</pre>( */}
-			{/* {data.length} rows) */}
 			<h1 className="text-lg font-semibold">Location List</h1>
 			<div className="flex gap-2 sticky right-0">
 				<button
@@ -207,14 +197,6 @@ function LocationList() {
 				>
 					Reset
 				</button>
-				{/* <button
-					type="button"
-					className="btn btn-error btn-ghost btn-square"
-					disabled={Object.keys(table.getState().rowSelection).length === 0}
-					onClick={() => deleteModalRef.current.open()}
-				>
-					<MdOutlineDelete className="w-full h-full" />
-				</button> */}
 			</div>
 
 			<div className="px-2 w-full">

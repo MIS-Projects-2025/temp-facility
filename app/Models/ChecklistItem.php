@@ -19,11 +19,12 @@ class ChecklistItem extends Model
     'modified_by',
     'input_type',
     'allowed_values',
-    'modified_at',
+
   ];
 
   protected $casts = [
     'allowed_values' => 'array',
+    'modified_at' => 'datetime',
   ];
 
   public function checklist()

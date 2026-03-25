@@ -42,13 +42,11 @@ class PmHistoryService
                 'done_date'    => $parsedDoneDate,
                 'performed_by' => $performedBy,
                 'notes'        => $notes,
-                'created_at'   => now(),
             ]);
 
             $assetSchedule->update([
                 'next_due_date' => $nextDueDate,
                 'modified_by'   => $performedBy,
-                'modified_at'   => now(),
             ]);
         });
 

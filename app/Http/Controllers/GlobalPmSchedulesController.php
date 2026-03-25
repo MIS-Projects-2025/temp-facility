@@ -129,7 +129,7 @@ class GlobalPmSchedulesController extends Controller
     $entry = GlobalPMSchedule::create([
       ...$validated,
       'modified_by' => $user_id,
-      'modified_at' => Carbon::now(),
+
     ]);
 
     return response()->json([
@@ -157,7 +157,7 @@ class GlobalPmSchedulesController extends Controller
     $item->update([
       ...$validated,
       'modified_by' => $user_id,
-      'modified_at' => Carbon::now(),
+
     ]);
 
     return response()->json([

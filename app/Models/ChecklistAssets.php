@@ -12,7 +12,11 @@ class ChecklistAssets extends Model
     'asset_id',
     'checklist_id',
     'modified_by',
-    'modified_at',
+
+  ];
+
+  protected $casts = [
+    'modified_at' => 'datetime',
   ];
 
   public function asset()

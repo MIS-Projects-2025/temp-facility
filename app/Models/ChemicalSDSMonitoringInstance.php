@@ -12,6 +12,9 @@ class ChemicalSDSMonitoringInstance extends Model
 
   protected $casts = [
     'results' => 'array',
+    'checked_at'   => 'datetime',
+    'modified_at'  => 'datetime',
+    'verified_at'  => 'datetime',
   ];
 
   protected $fillable = [

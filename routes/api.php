@@ -20,6 +20,7 @@ use App\Http\Controllers\ChecklistInstanceController;
 use App\Http\Controllers\PmHistoryController;
 use App\Http\Controllers\GlobalPmSchedulesController;
 use App\Http\Controllers\GlobalPmController;
+use App\Http\Controllers\ChecklistApprovalConfigController;
 use App\Http\Controllers\ChecklistsController;
 use App\Http\Controllers\RestroomMonitoringInstanceController;
 use App\Http\Controllers\HazardousWasteTurnOverLogSheetController;
@@ -113,6 +114,8 @@ Route::middleware([ApiAuthMiddleware::class])
         ->name('massGenocide');
       Route::get('/scheduled-check-items', [ChecklistItemsController::class, 'getScheduledCheckItems'])
         ->name('scheduled-check-items');
+      Route::get('/overdue', [ChecklistItemsController::class, 'getOverdueCheckItems'])
+        ->name('overdue');
     });
 
     Route::prefix('check-items')->name('check-items.')->group(function () {
@@ -202,6 +205,18 @@ Route::middleware([ApiAuthMiddleware::class])
       Route::patch('/verify', [ChecklistInstanceController::class, 'verify'])
         ->middleware(ApiPermissionMiddleware::class)
         ->name('verify');
+      Route::patch('/{id}/approve', [ChecklistInstanceController::class, 'approve'])
+        ->middleware(ApiPermissionMiddleware::class)
+        ->name('approve');
+    });
+
+    Route::prefix('checklist-approval-config')->name('checklist-approval-config.')->group(function () {
+      Route::patch('/bulk-update', [ChecklistApprovalConfigController::class, 'bulkUpdate'])
+        ->middleware(ApiPermissionMiddleware::class)
+        ->name('bulkUpdate');
+      Route::delete('/mass-genocide', [ChecklistApprovalConfigController::class, 'massGenocide'])
+        ->middleware(ApiPermissionMiddleware::class)
+        ->name('massGenocide');
     });
 
     Route::prefix('restroom-monitoring-instance')->name('restroom-monitoring-instance.')->group(function () {

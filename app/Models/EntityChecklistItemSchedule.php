@@ -17,6 +17,10 @@ class EntityChecklistItemSchedule extends Model
     'modified_by',
   ];
 
+  protected $casts = [
+    'modified_at'  => 'datetime',
+  ];
+
   public function schedule()
   {
     return $this->belongsTo(Schedule::class, 'schedule_id');

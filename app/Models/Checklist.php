@@ -11,7 +11,14 @@ class Checklist extends Model
   protected $fillable = [
     'name',
     'description',
-    'instruction'
+    'instruction',
+    'modified_by',
+
+  ];
+
+  protected $casts = [
+    'created_at' => 'datetime',
+    'modified_at' => 'datetime',
   ];
 
   public function checklistItems()

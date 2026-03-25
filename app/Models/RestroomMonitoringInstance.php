@@ -12,6 +12,8 @@ class RestroomMonitoringInstance extends Model
 
   protected $casts = [
     'results' => 'array',
+    'created_at'  => 'datetime',
+    'verified_at'  => 'datetime',
   ];
 
   protected $fillable = [

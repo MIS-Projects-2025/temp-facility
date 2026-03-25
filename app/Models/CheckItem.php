@@ -15,6 +15,10 @@ class CheckItem extends Model
     'description',
   ];
 
+  protected $casts = [
+    'modified_at' => 'datetime',
+  ];
+
   protected static function booted()
   {
     static::creating(function ($item) {

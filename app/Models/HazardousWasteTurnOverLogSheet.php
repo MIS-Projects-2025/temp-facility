@@ -22,5 +22,6 @@ class HazardousWasteTurnOverLogSheet extends Model
 
   protected $casts = [
     'id' => 'string',
+    'modified_at'  => 'datetime',
   ];
 }

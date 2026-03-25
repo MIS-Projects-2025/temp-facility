@@ -17,4 +17,9 @@ class Location extends Model
     'created_by',
     'modified_by',
   ];
+
+  protected $casts = [
+    'created_at'  => 'datetime',
+    'modified_at'  => 'datetime',
+  ];
 }

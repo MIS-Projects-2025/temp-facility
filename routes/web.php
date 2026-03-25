@@ -7,12 +7,14 @@ use App\Http\Controllers\DemoController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\General\AdminController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\RhTempStatusController;
 use App\Http\Controllers\UtilityTrashController;
 use App\Http\Controllers\LocationController;
 use App\Http\Controllers\General\ProfileController;
 use App\Http\Controllers\ChecklistsController;
 use App\Http\Controllers\CheckItemsController;
 use App\Http\Controllers\SchedulesController;
+use App\Http\Controllers\ChecklistApprovalConfigController;
 use App\Http\Controllers\AssetsController;
 use App\Http\Controllers\GlobalPmController;
 use App\Http\Controllers\GlobalPmSchedulesController;
@@ -42,6 +44,7 @@ Route::post("/remove-admin", [AdminController::class, 'removeAdmin'])->name('rem
 Route::patch("/change-admin-role", [AdminController::class, 'changeAdminRole'])->name('changeAdminRole');
 
 Route::get("/", [DashboardController::class, 'index'])->name('dashboard');
+Route::get("/rh-temp", [RhTempStatusController::class, 'index'])->name('rh-temp-dashboard');
 Route::get("/asset-health", [AssetHealthBoardController::class, 'index'])->name('asset-health');
 Route::get("/utility-trash-list", [UtilityTrashController::class, 'index'])->name('utility-trash');
 
@@ -103,6 +106,14 @@ Route::prefix('checklist')->name('checklist.')->group(
     function () {
         Route::middleware([])->group(function () {
             Route::get("/list", [ChecklistsController::class, 'index'])->name('index');
+        });
+    }
+);
+
+Route::prefix('checklist-approval-config')->name('checklist-approval-config.')->group(
+    function () {
+        Route::middleware([])->group(function () {
+            Route::get("/list", [ChecklistApprovalConfigController::class, 'index'])->name('index');
         });
     }
 );

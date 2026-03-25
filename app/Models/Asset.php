@@ -16,11 +16,12 @@ class Asset extends Model
     'code',
     'location_id',
     'modified_by',
-    'modified_at',
+
   ];
 
   protected $casts = [
     'properties' => 'array',
+    'modified_at' => 'datetime',
   ];
 
   public function location()

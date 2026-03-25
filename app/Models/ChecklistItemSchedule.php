@@ -16,6 +16,10 @@ class ChecklistItemSchedule extends Model
     'checklist_item_id',
   ];
 
+  protected $casts = [
+    'modified_at'  => 'datetime',
+  ];
+
   public function schedule()
   {
     return $this->belongsTo(Schedule::class, 'schedule_id');

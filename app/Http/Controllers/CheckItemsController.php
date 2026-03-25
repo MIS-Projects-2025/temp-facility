@@ -112,7 +112,6 @@ class CheckItemsController extends Controller
     $entry = CheckItem::create([
       ...$validated,
       'modified_by' => $user_id,
-      'modified_at' => Carbon::now(),
     ]);
 
     return response()->json([
@@ -140,7 +139,6 @@ class CheckItemsController extends Controller
     $item->update([
       ...$validated,
       'modified_by' => $user_id,
-      'modified_at' => Carbon::now(),
     ]);
 
     return response()->json([

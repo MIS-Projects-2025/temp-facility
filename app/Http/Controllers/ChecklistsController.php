@@ -141,7 +141,7 @@ class ChecklistsController extends Controller
     $entry = Checklist::create([
       ...$validated,
       'modified_by' => $user_id,
-      'modified_at' => Carbon::now(),
+
     ]);
 
     return response()->json([
@@ -169,7 +169,7 @@ class ChecklistsController extends Controller
     $item->update([
       ...$validated,
       'modified_by' => $user_id,
-      'modified_at' => Carbon::now(),
+
     ]);
 
     return response()->json([

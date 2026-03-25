@@ -17,6 +17,11 @@ class ChemicalSDS extends Model
     'remarks',
   ];
 
+  protected $casts = [
+    'checked_at'   => 'datetime',
+    'modified_at'  => 'datetime',
+  ];
+
   public function chemical()
   {
     return $this->belongsTo(Chemicals::class, 'chemical_id');

@@ -193,7 +193,6 @@ class AssetsController extends Controller
     $entry = Asset::create([
       ...$validated,
       'modified_by' => $user_id,
-      'modified_at' => Carbon::now(),
     ]);
 
     return response()->json([
@@ -221,7 +220,6 @@ class AssetsController extends Controller
     $item->update([
       ...$validated,
       'modified_by' => $user_id,
-      'modified_at' => Carbon::now(),
     ]);
 
     return response()->json([

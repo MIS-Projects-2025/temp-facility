@@ -48,13 +48,16 @@ return Application::configure(basePath: dirname(__DIR__))
         });
     })
     ->withMiddleware(function (Middleware $middleware): void {
-        $middleware->append(StartSession::class);
-
-        $middleware->web([
+        $middleware->appendToGroup('web', [
             \App\Http\Middleware\HandleInertiaRequests::class,
             \Illuminate\Http\Middleware\AddLinkHeadersForPreloadedAssets::class,
             \App\Http\Middleware\SessionMiddleware::class,
             \App\Http\Middleware\AuthMiddleware::class,
+        ]);
+
+        $middleware->appendToGroup('api', [
+            \Illuminate\Cookie\Middleware\EncryptCookies::class,
+            StartSession::class,
         ]);
     })
     ->create();

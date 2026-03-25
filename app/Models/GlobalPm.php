@@ -15,6 +15,10 @@ class GlobalPm extends Model
     'modified_by',
   ];
 
+  protected $casts = [
+    'modified_at'  => 'datetime',
+  ];
+
   public function latestPmHistory()
   {
     return $this->hasOne(GlobalPmHistory::class)->latestOfMany('done_date');

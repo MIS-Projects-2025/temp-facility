@@ -28,4 +28,11 @@ class Schedule extends Model
   {
     return $this->hasMany(EntityChecklistItemSchedule::class, 'schedule_id');
   }
+
+  protected $casts = [
+    'day_times'    => 'array',
+    'days_of_week' => 'array',
+    'days_of_month' => 'array',
+    'months'       => 'array',
+  ];
 }

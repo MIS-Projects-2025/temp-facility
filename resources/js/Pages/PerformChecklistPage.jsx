@@ -47,6 +47,17 @@ const PerformChecklistPage = () => {
 		auto: false,
 	});
 
+	const {
+		data: overdueChecklistItems,
+		isLoading: isLoadingOverdueChecklistItems,
+		errorMessage: errorMessageOverdueChecklistItems,
+		errorData: errorDataOverdueChecklistItems,
+		cancel: cancelOverdueChecklistItems,
+		fetch: fetchOverdueChecklistItems,
+	} = useFetch(route("api.checklist-items.overdue"), {
+		auto: false,
+	});
+
 	const [assetSearchInput, setAssetSearchInput] = useState("");
 
 	const [currentStep, setCurrentStep] = React.useState(0);
@@ -57,7 +68,7 @@ const PerformChecklistPage = () => {
 
 	useEffect(() => {
 		if (selectedChecklist) setCurrentStep(1);
-		if (selectedChecklist && selectedAssets.length > 0) setCurrentStep(2);
+		if (selectedChecklist && selectedAssets?.length > 0) setCurrentStep(2);
 		if (isFormFilled) setCurrentStep(3);
 	}, [selectedChecklist, selectedAssets, isFormFilled]);
 
@@ -67,6 +78,10 @@ const PerformChecklistPage = () => {
 
 	useEffect(() => {
 		fetchChecklistItems({
+			assetId: selectedAssets[0]?.id,
+			checklistId: selectedChecklist?.id,
+		});
+		fetchOverdueChecklistItems({
 			assetId: selectedAssets[0]?.id,
 			checklistId: selectedChecklist?.id,
 		});
@@ -170,17 +185,14 @@ const PerformChecklistPage = () => {
 	};
 
 	return (
-		<div className="flex md:flex-row flex-col gap-4 relative">
-			<div className="h-20 md:h-50 sticky top-0">
-				<Steps
+		<div className="flex md:flex-row flex-col gap-2 relative">
+			<div className="h-20 md:h-50 w-50 sticky top-0">
+				{/* <Steps
 					steps={performChecklistSteps}
 					currentStep={currentStep}
 					stepsClassName={"w-full md:steps-vertical z-0"}
-				/>
-			</div>
-
-			<div className="flex-1 flex flex-col h-[calc(100vh-7rem)] bg-base-100 p-4 shadow-2xl">
-				<div className="flex">
+				/> */}
+				<div className="flex flex-col">
 					<MultiSelectSearchableDropdown
 						modalId={checklistModalID}
 						options={
@@ -211,13 +223,15 @@ const PerformChecklistPage = () => {
 						customButtonLabel={({ selectedOptions }) => {
 							return (
 								<div>
-									{selectedOptions.length > 0 ? (
+									{selectedOptions?.length > 0 ? (
 										<div className="flex items-center justify-between w-full">
-											<h1 className="flex gap-2 items-center w-full text-lg">
+											<h1 className="flex flex-col items-center w-full text-lg">
 												<span className="text-sm font-normal text-base-content">
 													Performing
 												</span>
-												<span>{selectedOptions[0]}</span>
+												<span className="text-sm text-center">
+													{selectedOptions[0]}
+												</span>
 											</h1>
 										</div>
 									) : (
@@ -232,7 +246,7 @@ const PerformChecklistPage = () => {
 						disableTooltip
 						itemName="Checklist List"
 						prompt="Select Checklist"
-						contentClassName="h-120"
+						contentClassName="h-120 w-100"
 						buttonSelectorClassName="min-h-8 w-full h-auto btn-soft btn-primary text-left"
 						singleSelect
 					>
@@ -264,13 +278,15 @@ const PerformChecklistPage = () => {
 						customButtonLabel={({ selectedOptions }) => {
 							return (
 								<div>
-									{selectedOptions.length > 0 ? (
+									{selectedOptions?.length > 0 ? (
 										<div className="flex items-left justify-between w-full">
-											<h1 className="flex gap-2 items-center w-full text-lg">
+											<h1 className="flex flex-col items-center w-full text-lg">
 												<span className="text-sm font-normal text-base-content">
 													on equipment
 												</span>
-												<span>{selectedOptions[0]}</span>
+												<span className="text-sm text-center">
+													{selectedOptions[0]}
+												</span>
 											</h1>
 										</div>
 									) : (
@@ -292,14 +308,17 @@ const PerformChecklistPage = () => {
 						{customAssetListStyle}
 					</MultiSelectSearchableDropdown>
 				</div>
+			</div>
 
+			<div className="flex-1 flex flex-col h-[calc(100vh-7rem)] bg-base-100 p-4 shadow-2xl">
 				{selectedChecklist &&
-					selectedAssets.length > 0 &&
-					checklistItems.length > 0 && (
+					selectedAssets?.length > 0 &&
+					checklistItems?.length > 0 && (
 						<ChecklistItemsForm
 							assetId={selectedAssets[0]?.id}
 							checklist={selectedChecklist}
 							items={checklistItems}
+							overdueItems={overdueChecklistItems}
 							isItemsLoading={isLoadingChecklistItems}
 							// onValid={setIsFormFilled}
 							onAnyFilled={setIsFormFilled}

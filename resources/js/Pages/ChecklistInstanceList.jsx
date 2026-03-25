@@ -108,10 +108,14 @@ function ChecklistInstanceList() {
 						accessorKey: "checklist",
 						cell: ({ row }) => {
 							console.log("🚀 ~ ChecklistInstanceList ~ row:", row);
+							const submission_type = row.original?.submission_type;
 							const checklist = row.original.checklist;
 							const isVerified = row.original.verified_at !== null;
+
 							return (
-								<div className="justify-center flex flex-col items-left">
+								<div
+									className={`justify-center flex flex-col items-left ${submission_type === "late" ? "bg-linear-to-r from-red-500/10 to-transparent" : ""}`}
+								>
 									<div className="flex gap-1">
 										{isVerified ? (
 											<MdVerified className="w-4 h-4 text-green-500" />
@@ -135,6 +139,7 @@ function ChecklistInstanceList() {
 				header: "Results (click for more details)",
 				accessorFn: (row) => {
 					if (!row.results || row.results.length === 0) return "No results";
+					const late_results_count = row?.late_results_count;
 
 					return `review (${row.results.length}) item results`;
 				},
@@ -143,45 +148,105 @@ function ChecklistInstanceList() {
 					modalID: reviewResultsModalID,
 					handleCellClick: handleEditedItemClick,
 					isEditable: false,
+					formatDisplayValue: ({ row }) => {
+						const {
+							results,
+							late_results_count,
+							is_approver,
+							can_approve_now,
+						} = row.original;
+
+						if (!results || results.length === 0) return null;
+
+						const hasLate = late_results_count > 0;
+
+						return (
+							<div className="gap-1 flex justify-between items-center">
+								<div className="flex flex-col">
+									<div className="w-18 flex justify-between">
+										<span>item{results.length !== 1 ? "s" : ""}</span>
+										<span>{results.length}</span>
+									</div>
+									{hasLate && (
+										<div className="flex text-red-600 justify-between w-18">
+											<div>late</div>
+											<div className="flex justify-between">
+												<span>{late_results_count}</span>
+											</div>
+										</div>
+									)}
+								</div>
+								{can_approve_now && (
+									<div className="badge badge-xs badge-warning animate-pulse">
+										needs your approval
+									</div>
+								)}
+								{is_approver && !can_approve_now && (
+									<div className="badge badge-xs badge-ghost opacity-50">
+										approval pending
+									</div>
+								)}
+							</div>
+						);
+					},
 				}),
 			},
 			{
 				header: "Verified",
-				accessorKey: "verified_at", // or just use row.original
+				accessorKey: "verified_at",
 				cell: ({ row }) => {
-					const { verified_at, verified_by, verifier } = row.original;
-					const notVerified = !verified_at && !verified_by;
+					const {
+						verified_at,
+						verified_by,
+						verifier,
+						approved_at,
+						approved_by,
+						approver,
+						submission_type,
+					} = row.original;
 
-					const verifierName = verifier
-						? `${verifier.FIRSTNAME} ${verifier.LASTNAME}`
-						: "unknown";
+					const isLate = submission_type === "late";
+					const isResolved = isLate ? !!approved_at : !!verified_at;
+
+					const displayBy = isLate ? approved_by : verified_by;
+					const displayAt = isLate ? approved_at : verified_at;
+					const displayName = isLate
+						? approver
+							? `${approver.FIRSTNAME} ${approver.LASTNAME}`
+							: "unknown"
+						: verifier
+							? `${verifier.FIRSTNAME} ${verifier.LASTNAME}`
+							: "unknown";
 
 					return (
 						<div className="flex flex-col px-1 gap-1 text-left w-full">
-							<div className="text-xs">
+							<div className="text-xs flex items-center gap-1">
+								{isLate && (
+									<span className="badge badge-xs badge-warning">appeal</span>
+								)}
 								by:
-								{verified_by ? (
+								{displayBy ? (
 									<span className="ml-1 badge badge-xs badge-soft badge-primary">
-										{verifierName} ({verified_by})
+										{displayName} ({displayBy})
 									</span>
 								) : (
 									<span className="ml-1 opacity-50 text-xs">N/A</span>
 								)}
 							</div>
-							<div
-								className={clsx("text-xs", {
-									"badge-success": !notVerified,
-								})}
-							>
-								{formatPastDateTimeLabel(verified_at)}
+							<div className={clsx("text-xs", { "badge-success": isResolved })}>
+								{formatPastDateTimeLabel(displayAt)}
 								<span className="ml-1 opacity-50">
-									{verified_at ? formatTimestamp(verified_at) : "pending"}
+									{displayAt ? formatTimestamp(displayAt) : "pending"}
 								</span>
 							</div>
 							<div
 								className={clsx(
 									"absolute -right-1 top-0 w-1 h-full",
-									notVerified ? "bg-warning" : "bg-success",
+									isResolved
+										? "bg-success"
+										: isLate
+											? "bg-error"
+											: "bg-warning",
 								)}
 							/>
 						</div>
@@ -193,7 +258,8 @@ function ChecklistInstanceList() {
 				header: "Performed",
 				accessorKey: "created_at", // or row.original
 				cell: ({ row }) => {
-					const { created_at, created_by, creator } = row.original;
+					const { created_at, created_by, creator, submission_type } =
+						row.original;
 					console.log("🚀 ~ ChecklistInstanceList ~ created_at:", created_at);
 
 					const creatorName = creator
@@ -201,7 +267,9 @@ function ChecklistInstanceList() {
 						: "unknown";
 
 					return (
-						<div className="flex flex-col px-1 gap-1 w-full">
+						<div
+							className={`flex flex-col px-1 gap-1 w-full relative ${submission_type === "late" ? "bg-linear-to-l from-red-500/10 to-transparent" : ""}`}
+						>
 							<div className="text-xs">
 								<div className="text-xs">
 									by:
@@ -225,7 +293,7 @@ function ChecklistInstanceList() {
 						</div>
 					);
 				},
-				size: 150,
+				size: 250,
 			},
 		],
 		[],
@@ -239,6 +307,30 @@ function ChecklistInstanceList() {
 		},
 	);
 
+	const handleApprove = async (instanceId) => {
+		if (!instanceId) {
+			toast.error("No instance selected.");
+			return;
+		}
+
+		try {
+			await mutate(
+				route("api.checklist-instance.approve", { id: instanceId }),
+				{
+					method: "PATCH",
+					body: { remarks: null },
+				},
+			);
+
+			toast.success("Checklist approved successfully!");
+			document.getElementById(reviewResultsModalID).close();
+			refresh();
+		} catch (error) {
+			toast.error(error?.message);
+			console.error(error);
+		}
+	};
+
 	const handleVerify = async (
 		instances = Object.keys(table.getState().rowSelection),
 	) => {
@@ -247,7 +339,6 @@ function ChecklistInstanceList() {
 			return;
 		}
 
-		// if (!confirm("Are you sure you want to discard all changes?")) return;
 		try {
 			await mutate(route("api.checklist-instance.verify"), {
 				method: "PATCH",
@@ -256,6 +347,7 @@ function ChecklistInstanceList() {
 
 			toast.success("Checklist verified successfully!");
 			table.resetRowSelection();
+			document.getElementById(reviewResultsModalID).close();
 			refresh();
 		} catch (error) {
 			toast.error(error?.message);
@@ -427,7 +519,7 @@ function ChecklistInstanceList() {
 			<Modal
 				id={reviewResultsModalID}
 				title="Review Checklist"
-				className="w-11/12 max-w-6xl"
+				className="w-11/12 max-w-7xl"
 			>
 				<div className="flex justify-between items-center">
 					<div>
@@ -435,6 +527,13 @@ function ChecklistInstanceList() {
 						<span className="text-xs">
 							{selectedInstance?.checklist?.form_control_no}
 						</span>
+					</div>
+					<div>
+						{selectedInstance?.late_results_count > 0 && (
+							<span className="text-error-content bg-error border px-2">
+								Subjected To Appeal
+							</span>
+						)}
 					</div>
 				</div>
 				<div className="flex justify-between items-center">
@@ -460,48 +559,82 @@ function ChecklistInstanceList() {
 								<th className="px-4 py-2 text-left text-sm">Criteria</th>
 								<th className="px-4 py-2 text-left text-sm">Status</th>
 								<th className="px-4 py-2 text-left text-sm">Remarks</th>
+								<th className="px-4 py-2 text-left text-sm">Period</th>
 							</tr>
 						</thead>
 						<tbody className="divide-y">
 							{processed?.length > 0 &&
-								processed.map((r) => (
-									<tr key={r.id}>
-										{r.rowSpan > 0 && (
-											<td className="px-4 py-2 text-sm" rowSpan={r.rowSpan}>
-												<div>
-													<span className={r.asset?.code ? "" : "opacity-50"}>
-														{r.asset?.code || "N/A"}
-													</span>
-													<span
-														className={`pl-1 text-xs ${r.asset?.location?.location_name ? "" : "opacity-50"}`}
-													>
-														@ {r.asset?.location?.location_name || "N/A"}
-													</span>
-												</div>
+								processed.map((r) => {
+									console.log("🚀 ~ ChecklistInstanceList ~ r:", r);
+
+									const isLate =
+										selectedInstance?.created_at &&
+										r?.period_end &&
+										new Date(selectedInstance.created_at) >
+											new Date(r.period_end);
+
+									return (
+										<tr key={r.id} className="">
+											{r.rowSpan > 0 && (
+												<td className="px-4 py-2 text-sm" rowSpan={r.rowSpan}>
+													<div>
+														<span className={r.asset?.code ? "" : "opacity-50"}>
+															{r.asset?.code || "N/A"}
+														</span>
+														{/* <span
+															className={`pl-1 text-xs ${r.asset?.location?.location_name ? "" : "opacity-50"}`}
+														>
+															@ {r.asset?.location?.location_name || "N/A"}
+														</span> */}
+													</div>
+												</td>
+											)}
+											<td
+												className={`px-4 py-2 text-sm ${r.item?.item?.name ? "" : "opacity-50"}`}
+											>
+												{r.item?.item?.name || "N/A"}
 											</td>
-										)}
-										<td
-											className={`px-4 py-2 text-sm ${r.item?.item?.name ? "" : "opacity-50"}`}
-										>
-											{r.item?.item?.name || "N/A"}
-										</td>
-										<td
-											className={`px-4 py-2 text-sm ${r.item?.criteria ? "" : "opacity-50"}`}
-										>
-											{r.item?.criteria || "N/A"}
-										</td>
-										<td
-											className={`px-4 py-2 text-sm ${r.item_status ? "" : "opacity-50"}`}
-										>
-											{r.item_status || "N/A"}
-										</td>
-										<td
-											className={`px-4 py-2 text-sm ${r.remarks ? "" : "opacity-50"}`}
-										>
-											{r.remarks || "N/A"}
-										</td>
-									</tr>
-								))}
+											<td
+												className={`px-4 py-2 text-sm ${r.item?.criteria ? "" : "opacity-50"}`}
+											>
+												{r.item?.criteria || "N/A"}
+											</td>
+											<td
+												className={`px-4 py-2 text-sm ${r.item_status ? "" : "opacity-50"}`}
+											>
+												{r.item_status || "N/A"}
+											</td>
+											<td
+												className={`px-4 py-2 text-sm ${r.remarks ? "" : "opacity-50"}`}
+											>
+												{r.remarks || "N/A"}
+											</td>
+											<td
+												className={clsx(
+													`flex gap-2 items-center px-4 py-2 text-sm`,
+													{
+														"ring ring-error": isLate,
+													},
+												)}
+											>
+												<span>
+													{formatTimestamp(r?.period_start || null) || "N/A"}
+												</span>
+												<span className="opacity-50">to</span>
+												<span>
+													{formatTimestamp(r?.period_end || null) || "N/A"}
+												</span>
+												<span>
+													{isLate && (
+														<span className="font-extrabold text-error ml-1">
+															Appeal
+														</span>
+													)}
+												</span>
+											</td>
+										</tr>
+									);
+								})}
 
 							{processed?.length === 0 && (
 								<tr>
@@ -513,31 +646,156 @@ function ChecklistInstanceList() {
 						</tbody>
 					</table>
 				</div>
-				<div className="flex border border-base-content/10 w-full p-2">
-					<div className="flex-1 ">
-						notes: {selectedInstance.notes || "N/A"}
-					</div>
-				</div>
-				<div className="mr-auto">
-					{selectedInstance?.verified_at ? (
-						<div>
-							<MdVerified className="text-success inline mr-1" /> verified{" "}
-							{formatPastDateTimeLabel(selectedInstance?.verified_at)} by
-							<span className="px-1 text-primary">
-								{selectedInstance?.verifier?.FIRSTNAME || "unkown"}
-							</span>
-							<span>({selectedInstance?.verifier?.EMPLOYID || "unkown"})</span>
+				<div className="flex justify-between items-center border-t border-base-content/10 pt-2 mt-2">
+					{/* Left: approver chain status for late submissions */}
+					{selectedInstance?.submission_type === "late" && (
+						<div className="flex flex-col gap-1">
+							{Object.entries(
+								(selectedInstance?.all_approvers ?? []).reduce((acc, a) => {
+									(acc[a.level] ??= []).push(a);
+									return acc;
+								}, {}),
+							).map(([level, approvers]) => {
+								const isLevelApproved = approvers.some(
+									(a) => a.status === "approved",
+								);
+
+								return (
+									<div key={level} className="flex items-center text-xs gap-1">
+										<span
+											className={`badge badge-xs mr-1 w-14 justify-center ${isLevelApproved ? "badge-success" : "badge-warning"}`}
+										>
+											Level {level}
+										</span>
+										<span className="opacity-70">
+											{isLevelApproved
+												? "approved by "
+												: approvers.length === 1
+													? "awaiting "
+													: "awaiting any one of "}
+										</span>
+										<div className="flex gap-1">
+											{approvers.map((a, i) => {
+												const isApproved = a.status === "approved";
+
+												if (!isLevelApproved && isApproved) return null; // skip if another approved, redundant
+
+												return (
+													<div key={a.user_id} className="">
+														<span
+															className={`font-semibold ${isApproved ? "text-success" : "opacity-70"}`}
+														>
+															{a.employee?.FIRSTNAME} {a.employee?.LASTNAME}
+														</span>
+														<span className="opacity-50 ml-[1px]">
+															({a.user_id})
+														</span>
+														{!isLevelApproved && i < approvers.length - 1 && (
+															<span className="opacity-40 mx-1">or</span>
+														)}
+													</div>
+												);
+											})}
+										</div>
+									</div>
+								);
+							})}
 						</div>
-					) : (
-						<CancellableActionButton
-							refetch={() => handleVerify([selectedInstance?.id])}
-							loading={isMutateLoading}
-							buttonText="Verify"
-							buttonClassName="btn-primary"
-							abort={mutateCancel}
-							loadingMessage="Verifying"
-						/>
 					)}
+					{/* {selectedInstance?.submission_type === "late" && (
+						<div className="flex flex-col gap-1">
+							{Object.entries(
+								(selectedInstance?.pending_approvers ?? []).reduce((acc, a) => {
+									(acc[a.level] ??= []).push(a);
+									return acc;
+								}, {}),
+							).map(([level, approvers]) => (
+								<div key={level} className="text-xs opacity-70">
+									<span className="badge badge-xs badge-warning mr-1 w-14 justify-center">
+										Level {level}
+									</span>
+									{approvers.length === 1
+										? "awaiting "
+										: "awaiting any one of "}
+									{approvers.map((a, i) => (
+										<span key={a.user_id}>
+											<span className="font-semibold">
+												{a.employee?.FIRSTNAME} {a.employee?.LASTNAME}
+											</span>
+											<span className="opacity-50 ml-1">({a.user_id})</span>
+											{i < approvers.length - 1 && (
+												<span className="opacity-40 mx-1">or</span>
+											)}
+										</span>
+									))}
+								</div>
+							))}
+						</div>
+					)} */}
+
+					{selectedInstance?.submission_type === "punctual" && <div />}
+
+					{/* Right: action */}
+					<div>
+						{selectedInstance?.submission_type === "punctual" ? (
+							// --- Punctual flow ---
+							selectedInstance?.verified_at ? (
+								<div>
+									<MdVerified className="text-success inline" />
+									<span className="text-success mx-1">verified</span>
+									{formatPastDateTimeLabel(selectedInstance?.verified_at)} by
+									<span className="px-1 text-primary">
+										{selectedInstance?.verifier?.FIRSTNAME || "unknown"}
+									</span>
+									<span>
+										({selectedInstance?.verifier?.EMPLOYID || "unknown"})
+									</span>
+								</div>
+							) : (
+								<CancellableActionButton
+									refetch={() => handleVerify([selectedInstance?.id])}
+									loading={isMutateLoading}
+									buttonText="Verify"
+									buttonClassName="btn-primary"
+									abort={mutateCancel}
+									loadingMessage="Verifying"
+								/>
+							)
+						) : // --- Late flow ---
+						selectedInstance?.approved_at ? (
+							<div>
+								<MdVerified className="text-success inline" />
+								<span className="text-success mx-1">approved</span>
+								{formatPastDateTimeLabel(selectedInstance?.approved_at)} by
+								<span className="px-1 text-primary">
+									{selectedInstance?.approver?.FIRSTNAME || "unknown"}
+								</span>
+								<span>({selectedInstance?.approved_by || "unknown"})</span>
+							</div>
+						) : selectedInstance?.can_approve_now ? (
+							<CancellableActionButton
+								refetch={() => handleApprove(selectedInstance?.id)}
+								loading={isMutateLoading}
+								buttonText="Approve"
+								buttonClassName="btn-warning"
+								abort={mutateCancel}
+								loadingMessage="Approving"
+							/>
+						) : selectedInstance?.is_approver ? (
+							<span className="text-xs opacity-50">
+								{
+									{
+										level_already_approved:
+											"Your level has already been approved.",
+										previous_level_pending:
+											"Waiting for previous level approval.",
+									}[selectedInstance?.deny_reason]
+								}
+							</span>
+						) : (
+							<span className="text-xs opacity-50">Pending approval</span>
+						)}
+					</div>
 				</div>
 			</Modal>
 		</div>

@@ -11,6 +11,10 @@ class AssetPmSchedule extends Model
   protected $table = 'entity_asset_pm_schedules';
   public $timestamps = false;
 
+  protected $casts = [
+    'modified_at' => 'datetime',
+  ];
+
   protected $fillable = [
     'schedule_id',
     'asset_id',

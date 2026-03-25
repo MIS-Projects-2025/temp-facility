@@ -7,11 +7,12 @@ use App\Repositories\CheckItemsResultRepository;
 use App\Services\AssetsService;
 use App\Services\ChecklistsService;
 use Illuminate\Http\Request;
-use Illuminate\Support\Collection;
 use Inertia\Inertia;
 use App\Models\ChecklistInstance;
 use App\Models\Checklist;
+use App\Models\MachineDevice;
 use App\Models\CheckItem;
+use App\Services\RunningHoursService;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -85,33 +86,12 @@ class DashboardController extends Controller
         return $summary;
     }
 
-    private function computeRunningHours(array $item): array
-    {
-        $first = $item['first']->item_status;
-        $latest = $item['latest']->item_status;
-        $isValid = is_numeric($first) && is_numeric($latest);
-
-        return array_merge($item, [
-            'running_hours' => $isValid ? (float)$latest - (float)$first : null,
-            'running_hours_invalid' => !$isValid,
-        ]);
-    }
-
-    public function enrichWithRunningHours(Collection $results, string $slug = 'running_hours'): Collection
-    {
-        return $results->map(function ($assetItems) use ($slug) {
-            return $assetItems->map(function ($item) use ($slug) {
-                if ($item['first']->item_slug !== $slug) {
-                    return $item;
-                }
-
-                return $this->computeRunningHours($item);
-            });
-        });
-    }
-
     public function index(Request $request)
     {
+        // $machineDevices = MachineDevice::all();
+
+        // Log::info("machineDevices: ", [$machineDevices]);
+
         $vacuumChecklistId = Checklist::where('slug', 'vacuum_pump')->value('id');
         $airCompressorChecklistId = Checklist::where('slug', 'revised_air_compressor_unit')->value('id');
         $gensetTestRunChecklistId = Checklist::where('slug', 'generator_test_run_monitoring_checklist')->value('id');
@@ -137,13 +117,13 @@ class DashboardController extends Controller
         $checklistService = new ChecklistsService();
 
         $vacuumLatestResults = $checkItemsResultsRepo->getLastAndFirstSinceLastPmByChecklist($vacuumChecklistId);
-        $vacuumLatestResults = $this->enrichWithRunningHours($vacuumLatestResults);
+        $vacuumLatestResults = RunningHoursService::enrichWithRunningHours($vacuumLatestResults);
 
         $airCompressorLatestResults = $checkItemsResultsRepo->getLastAndFirstSinceLastPmByChecklist($airCompressorChecklistId);
-        $airCompressorLatestResults = $this->enrichWithRunningHours($airCompressorLatestResults);
+        $airCompressorLatestResults = RunningHoursService::enrichWithRunningHours($airCompressorLatestResults);
 
         $gensetLatestResults = $checkItemsResultsRepo->getLastAndFirstSinceLastPmByChecklist($gensetTestRunChecklistId);
-        $gensetLatestResults = $this->enrichWithRunningHours($gensetLatestResults, $gensetRunningHoursSlug);
+        $gensetLatestResults = RunningHoursService::enrichWithRunningHours($gensetLatestResults, $gensetRunningHoursSlug);
 
         $allLatestStatusResults = $checkItemsResultsRepo->getAllStatusResults();
         $assetsOverview = self::getOverallChecklistState();

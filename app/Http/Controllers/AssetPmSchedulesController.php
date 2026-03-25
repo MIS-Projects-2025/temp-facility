@@ -154,7 +154,6 @@ class AssetPmSchedulesController extends Controller
     $entry = AssetPmSchedule::create([
       ...$validated,
       'modified_by' => $user_id,
-      'modified_at' => Carbon::now(),
     ]);
 
     return response()->json([
@@ -182,7 +181,6 @@ class AssetPmSchedulesController extends Controller
     $item->update([
       ...$validated,
       'modified_by' => $user_id,
-      'modified_at' => Carbon::now(),
     ]);
 
     return response()->json([
