@@ -18,12 +18,14 @@ class SessionMiddleware
       'route'  => optional($request->route())->getActionName(),
     ]);
 
-    $tokenFromQuery   = $request->query('key');
-    $tokenFromSession = session('emp_data.token');
-    $tokenFromCookie  = $request->cookie('sso_token');
+    $cookieName = env('SSO_COOKIE_NAME', 'sso_token');
 
-    $token = $tokenFromQuery ?? $tokenFromSession ?? $tokenFromCookie;
+        // 1️⃣ Get token sources (priority: query → cookie → session)
+        $tokenFromQuery   = $request->query('key');
+        $tokenFromCookie  = $request->cookie($cookieName);
+        $tokenFromSession = session('emp_data.token');
 
+$token = $tokenFromQuery ?? $tokenFromCookie ?? $tokenFromSession;
     if (!$token) {
       return $this->redirectToLogin($request);
     }
@@ -32,10 +34,10 @@ class SessionMiddleware
     if ($existing && $existing['token'] === $token) {
       $request->attributes->set('auth_user', (object) $existing);
 
-      if ($tokenFromQuery) {
-        $url = $request->url();
-        return redirect($url)->withCookie(cookie('sso_token', $token, 60 * 24 * 7));
-      }
+       if ($tokenFromQuery) {
+                $cookie = cookie($cookieName, $token, 60 * 24 * 7);
+                return redirect($request->url())->withCookie($cookie);
+            }
       return $next($request);
     }
 
@@ -50,7 +52,8 @@ class SessionMiddleware
 
     if (!$user) {
       session()->forget('emp_data');
-      return $this->redirectToLogin($request)->withCookie(cookie()->forget('sso_token'));
+        $expiredCookie = cookie()->forget($cookieName);
+            return $this->redirectToLogin($request)->withCookie($expiredCookie);
     }
 
     session(['emp_data' => [
@@ -67,7 +70,7 @@ class SessionMiddleware
 
     session()->save();
 
-    $cookie = cookie('sso_token', $user->token, 60 * 24 * 7, '/', null, false, true);
+      $cookie = cookie($cookieName, $user->token, 60 * 24 * 7);
     $request->setUserResolver(fn() => (object) session('emp_data'));
 
     if ($tokenFromQuery) {
@@ -86,6 +89,6 @@ class SessionMiddleware
   private function redirectToLogin(Request $request)
   {
     $redirectUrl = urlencode($request->fullUrl());
-    return redirect("http://192.168.1.27:8080/authify/public/login?redirect={$redirectUrl}");
+    return redirect("http://192.168.2.221:8200/login?redirect={$redirectUrl}");
   }
 }

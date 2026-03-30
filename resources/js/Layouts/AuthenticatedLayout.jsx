@@ -1,6 +1,6 @@
 import Footer from "@/Components/Footer";
 import NavBar from "@/Components/NavBar";
-import Sidebar from "@/Components/Sidebar/SideBar";
+import Sidebar from "@/Components/sidebar/SideBar";
 import { useChecklistStore } from "@/Store/checklistStore";
 import { usePage } from "@inertiajs/react";
 import { useEffect, useState } from "react";
