@@ -82,6 +82,15 @@ Route::middleware([ApiAuthMiddleware::class])
         ->name('update');
     });
 
+    Route::prefix('checklist-approval-config')->name('checklist-approval-config.')->group(function () {
+      Route::patch('/bulk-update', [ChecklistApprovalConfigController::class, 'bulkUpdate'])
+        ->middleware(ApiPermissionMiddleware::class)
+        ->name('bulkUpdate');
+      Route::delete('/mass-genocide', [ChecklistApprovalConfigController::class, 'massGenocide'])
+        ->middleware(ApiPermissionMiddleware::class)
+        ->name('massGenocide');
+    });
+
     Route::prefix('chemicals')->name('chemicals.')->group(function () {
         Route::post('/add', [ChemicalsController::class, 'store'])
         ->middleware(ApiPermissionMiddleware::class)
@@ -217,6 +226,9 @@ Route::middleware([ApiAuthMiddleware::class])
         Route::patch('/verify', [ChecklistInstanceController::class, 'verify'])
         ->middleware(ApiPermissionMiddleware::class)
         ->name('verify');
+        Route::patch('/{id}/approve', [ChecklistInstanceController::class, 'approve'])
+        ->middleware(ApiPermissionMiddleware::class)
+        ->name('approve');
     });
 
     Route::prefix('restroom-monitoring-instance')->name('restroom-monitoring-instance.')->group(function () {
