@@ -2,7 +2,7 @@
 
 namespace App\Services;
 
-use App\Models\GlobalPmSchedule;
+use App\Models\GlobalPMSchedule;
 use App\Models\GlobalPmHistory;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -19,7 +19,7 @@ class GlobalPmHistoryService
      */
     public function recordDoneDate(int $globalPmId, string $doneDate, ?string $performedBy = null, ?string $notes = null): array
     {
-        $globalSchedule = GlobalPmSchedule::with('schedule')
+        $globalSchedule = GlobalPMSchedule::with('schedule')
             ->where('global_pm_id', $globalPmId)
             ->first();
 
@@ -64,7 +64,7 @@ class GlobalPmHistoryService
      */
     public function getHistory(int $globalPmId): array
     {
-        $globalPmSchedule = GlobalPmSchedule::with('schedule')
+        $globalPmSchedule = GlobalPMSchedule::with('schedule')
             ->where('global_pm_id', $globalPmId)
             ->first();
 
@@ -90,7 +90,7 @@ class GlobalPmHistoryService
      */
     public function getAll(): \Illuminate\Support\Collection
     {
-        return GlobalPmSchedule::with('schedule', 'globalPm.latestPmHistory')
+        return GlobalPMSchedule::with('schedule', 'globalPm.latestPmHistory')
             ->get()
             ->map(fn($row) => [
                 'global_pm_id'      => $row->global_pm_id,

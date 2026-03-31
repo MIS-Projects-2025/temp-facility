@@ -3,7 +3,6 @@
 namespace App\Models;
 
 use App\Models\Schedule;
-use App\Models\ChecklistItem;
 use Illuminate\Database\Eloquent\Model;
 
 class GlobalPMSchedule extends Model
