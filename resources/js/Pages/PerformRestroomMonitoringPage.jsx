@@ -56,10 +56,10 @@ const PerformRestroomMonitoringPage = () => {
 					reload(value[0]?.id);
 				}}
 				defaultSelectedOptions={[
-					restrooms.find((r) => r.id === selectedRestroom?.id)?.restroom_name,
+					...[restrooms.find((r) => r.id === selectedRestroom?.id)?.restroom_name].filter(Boolean),
 				]}
 				controlledSelectedOptions={[
-					restrooms.find((r) => r.id === selectedRestroom?.id)?.restroom_name,
+					...[restrooms.find((r) => r.id === selectedRestroom?.id)?.restroom_name].filter(Boolean),
 				]}
 				customButtonLabel={({ selectedOptions }) => {
 					return (

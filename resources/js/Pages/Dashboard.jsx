@@ -384,8 +384,8 @@ export default function Dashboard() {
 		},
 	];
 
-	const total = ASSETS_CATEGORIES.reduce(
-		(sum, cat) => sum + (assets_due[cat.key]?.length ?? 0),
+	const total = (assets_due ?? []).reduce(
+		(sum, c) => sum + (c.total_assets ?? 0),
 		0,
 	);
 

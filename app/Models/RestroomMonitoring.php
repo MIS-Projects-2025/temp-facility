@@ -11,6 +11,7 @@ class RestroomMonitoring extends Model
 
   protected $fillable = [
     'restroom_id',
+    'fixture_id',
     'checked_by',
     'restroom_monitoring_instance_id',
     'status',
@@ -20,6 +21,11 @@ class RestroomMonitoring extends Model
   public function restroom()
   {
     return $this->belongsTo(Restroom::class, 'restroom_id', 'id');
+  }
+
+  public function fixture()
+  {
+    return $this->belongsTo(Fixture::class, 'fixture_id', 'id');
   }
 
   protected $casts = [

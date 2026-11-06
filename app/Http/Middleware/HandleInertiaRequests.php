@@ -31,7 +31,9 @@ class HandleInertiaRequests extends Middleware
     {
         return [
             ...parent::share($request),
-            'emp_data' => fn() => session('emp_data'),
+            'emp_data' => fn() => ($data = session('emp_data'))
+                ? collect($data)->except('token')->all()
+                : null,
             'flash' => [
                 'success' => fn() => $request->session()->get('success'),
                 'error'   => fn() => $request->session()->get('error'),
@@ -39,7 +41,7 @@ class HandleInertiaRequests extends Middleware
             'auth' => [
                 'user' => $request->user(),
             ],
-            'appName' => config('app.name'), // This pulls from .env
+            'appName' => config('app.name'),
             'display_name' => env('APP_DISPLAY_NAME', ''),
         ];
     }

@@ -28,7 +28,12 @@ const CheckItemList = () => {
 	const [maxItem, setMaxItem] = useState(serverPerPage || 30);
 	const [searchInput, setSearchInput] = useState(serverSearch || "");
 
+	const didMountRef = useRef(false);
 	useEffect(() => {
+		if (!didMountRef.current) {
+			didMountRef.current = true;
+			return;
+		}
 		const timer = setTimeout(() => {
 			router.reload({
 				data: {

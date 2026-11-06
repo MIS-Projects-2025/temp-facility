@@ -38,7 +38,12 @@ const ChemicalList = () => {
 		cancel: mutateCancel,
 	} = useMutation();
 
+	const didMountRef = useRef(false);
 	useEffect(() => {
+		if (!didMountRef.current) {
+			didMountRef.current = true;
+			return;
+		}
 		const timer = setTimeout(() => {
 			router.reload({
 				data: {
@@ -110,7 +115,7 @@ const ChemicalList = () => {
 			deleteModalRef.current.close();
 			toast.success("Entry verified successfully!");
 		} catch (error) {
-			toast.error(mutateErrorMessage);
+			toast.error(error?.message);
 			console.error(error);
 		}
 	};

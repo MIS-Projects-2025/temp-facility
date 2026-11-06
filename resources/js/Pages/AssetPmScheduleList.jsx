@@ -39,7 +39,12 @@ const AssetPmScheduleList = () => {
 	const [selectedCell, setSelectedCell] = useState(null);
 	const [assetsSearchInput, setAssetsSearchInput] = useState("");
 
+	const didMountRef = useRef(false);
 	useEffect(() => {
+		if (!didMountRef.current) {
+			didMountRef.current = true;
+			return;
+		}
 		const timer = setTimeout(() => {
 			router.reload({
 				data: {
@@ -370,7 +375,7 @@ const AssetPmScheduleList = () => {
 					onSearchChange={handleAssetSearchChange}
 					links={assets?.assets?.links || null}
 					currentPage={assets?.assets?.current_page || 1}
-					goToPage={() => goToPageAssets()}
+					goToPage={goToPageAssets}
 					itemName="Asset List"
 					isLoading={isLoadingAsset}
 					prompt="Select Asset"

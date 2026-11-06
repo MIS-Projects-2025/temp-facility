@@ -2,10 +2,11 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
 use App\Models\Chemicals;
 use App\Models\ChemicalSDS;
 use App\Models\ChemicalSDSMonitoringInstance;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 
 class PerformSDSMonitoringController extends Controller
@@ -32,29 +33,23 @@ class PerformSDSMonitoringController extends Controller
             'items.*.chemical_id' => 'required|integer|exists:chemicals,id',
         ]);
 
-        $notes = $validated['notes'] ?? null;
-        $chemical_sds = $validated['items'];
-        $user_id = session('emp_data')['emp_id'] ?? null;
-        $checkedBy = $user_id;
+        $checkedBy = session('emp_data.emp_id');
+        abort_if(!$checkedBy, 401, 'Session expired. Please log in again.');
 
-        $checklistInstance = ChemicalSDSMonitoringInstance::create([
-            'created_by' => $checkedBy,
-            'notes' => $notes,
-        ]);
+        DB::transaction(function () use ($validated, $checkedBy) {
+            $instance = ChemicalSDSMonitoringInstance::create([
+                'created_by' => $checkedBy,
+                'notes' => $validated['notes'] ?? null,
+            ]);
 
-        $checklistInstanceId = $checklistInstance->id;
-
-        $insertData = array_map(function ($item) use ($checklistInstanceId, $checkedBy) {
-            return [
+            ChemicalSDS::insert(array_map(fn($item) => [
                 'chemical_id' => $item['chemical_id'],
                 'checked_by' => $checkedBy,
                 'status' => $item['status'],
                 'remarks' => $item['remarks'] ?? null,
-                'chemical_sds_id' => $checklistInstanceId
-            ];
-        }, $chemical_sds);
-
-        ChemicalSDS::insert($insertData);
+                'chemical_sds_id' => $instance->id,
+            ], array_values($validated['items'])));
+        });
 
         return response()->json(['status' => 'ok']);
     }

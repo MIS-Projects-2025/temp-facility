@@ -2,7 +2,7 @@ import MultiSelectSearchableDropdown from "@/Components/MultiSelectSearchableDro
 import STATUS_CONFIG from "@/Constants/checkItemStatusConfig";
 import formatFriendlyDate from "@/Utils/formatFriendlyDate";
 import { router, usePage } from "@inertiajs/react";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { FaCaretDown } from "react-icons/fa6";
 import SearchInput from "./SearchInput";
 
@@ -41,9 +41,9 @@ const LatestResultsCards = ({ latestResults }) => {
 											<div>{itemName}</div>
 											<div className="text-xs opacity-50">
 												by {checkedBy?.FIRSTNAME}
-												<spa className="ml-1">
+												<span className="ml-1">
 													at {formatFriendlyDate(checkedAt, true)}
-												</spa>
+												</span>
 											</div>
 										</div>
 										<div className="flex items-center gap-1">
@@ -87,7 +87,12 @@ const AssetHealthBoardPage = () => {
 
 	const [searchInput, setSearchInput] = useState(serverSearch || "");
 
+	const didMountRef = useRef(false);
 	useEffect(() => {
+		if (!didMountRef.current) {
+			didMountRef.current = true;
+			return;
+		}
 		const timer = setTimeout(() => {
 			router.reload({
 				data: {
@@ -114,7 +119,7 @@ const AssetHealthBoardPage = () => {
 
 	return (
 		<div className="flex w-full h-[calc(100vh-100px)] flex-col gap-4 relative p-1 shadow-lg">
-			<h1 className="font-bold">Perform Restroom Monitoring</h1>
+			<h1 className="font-bold">Asset Health Board</h1>
 			<MultiSelectSearchableDropdown
 				modalId={checklistModalID}
 				options={
@@ -128,10 +133,10 @@ const AssetHealthBoardPage = () => {
 					reload(value[0]?.id);
 				}}
 				defaultSelectedOptions={[
-					checklists.find((r) => r.id === selectedChecklist?.id)?.name,
+					...[checklists.find((r) => r.id === selectedChecklist?.id)?.name].filter(Boolean),
 				]}
 				controlledSelectedOptions={[
-					checklists.find((r) => r.id === selectedChecklist?.id)?.name,
+					...[checklists.find((r) => r.id === selectedChecklist?.id)?.name].filter(Boolean),
 				]}
 				customButtonLabel={({ selectedOptions }) => {
 					return (
@@ -150,8 +155,8 @@ const AssetHealthBoardPage = () => {
 				disableSelectedContainer
 				disableClearSelection
 				disableTooltip
-				itemName="Restroom List"
-				prompt="Select Restroom"
+				itemName="Checklist List"
+				prompt="Select Checklist"
 				contentClassName="h-50"
 				buttonSelectorClassName="w-full min-h-8 h-auto btn-soft btn-primary text-left"
 				singleSelect

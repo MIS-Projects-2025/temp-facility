@@ -3,13 +3,10 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
-use Inertia\Inertia;
 use Carbon\Carbon;
-use App\Models\CheckItem;
 use App\Models\ChecklistInstance;
 use App\Models\ChecklistItem;
 use App\Models\ChecklistItemResult;
-use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use App\Services\OverdueCalculatorService;
@@ -62,34 +59,34 @@ class CheckItemsResultController extends Controller
 
     $derived = $answered->map(function ($item) use ($assetId, $checkedBy, $checkedAt, $checklistItems) {
       $schedule = $checklistItems[$item['checklist_item_id']]->entitySchedule?->schedule;
+      $start = $end = null;
 
       if (!empty($item['period_start']) && !empty($item['period_end'])) {
         // overdue/appeal row: period comes from the overdue list
-        $start = Carbon::parse($item['period_start']);
-        $end   = Carbon::parse($item['period_end']);
+        $start = Carbon::parse($item['period_start'])->utc();
+        $end   = Carbon::parse($item['period_end'])->utc();
       } elseif ($schedule) {
+        $derivable = true;
+
         try {
           [$start, $end] = OverdueCalculatorService::derivePeriod($checkedAt, $schedule->toArray());
         } catch (\InvalidArgumentException $e) {
-          Log::warning('Unsupported schedule for period', ['schedule' => $schedule->id]);
-          return [
-            'asset_id'          => $assetId,
-            'checked_by'        => $checkedBy,
-            'checklist_item_id' => $item['checklist_item_id'],
-            'item_status'       => trim($item['item_status']),
-            'remarks'           => $item['remarks'] ?? null,
-            'period_start'      => null,
-            'period_end'        => null,
-          ];
+          // hour-based / multi-year schedules cannot derive a period from checked_at
+          Log::warning('Cannot derive period for schedule', [
+            'schedule_id' => $schedule->id,
+            'error'       => $e->getMessage(),
+          ]);
+          $derivable = false;
+          $start = $end = null;
         }
 
-        if (!$start || !$end) {
-          throw ValidationException::withMessages(['items' => 'No schedule window is open for one of the items right now.']);
+        if ($derivable) {
+          if (!$start || !$end) {
+            throw ValidationException::withMessages(['items' => 'No schedule window is open for one of the items right now.']);
+          }
+          $start = $start->copy()->utc();
+          $end   = $end->copy()->utc();
         }
-        $start = $start->copy()->utc();
-        $end   = $end->copy()->utc();
-      } else {
-        $start = $end = null; // no-schedule item
       }
 
       return [
@@ -137,155 +134,5 @@ class CheckItemsResultController extends Controller
     });
 
     return response()->json(['status' => 'ok', 'instance_id' => $instance->id]);
-  }
-
-  public function index(Request $request)
-  {
-    $search = $request->input('search', '');
-    $perPage = $request->input('perPage', 100);
-    $totalEntries = CheckItem::count();
-
-    $checkItems = CheckItem::query()
-      ->when($search, function ($query, $search) {
-        $query->where(function ($q) use ($search) {
-          $q->orWhere('name', 'like', "%{$search}%");
-        });
-      })
-      ->orderBy('name')
-      ->paginate($perPage)
-      ->withQueryString();
-
-    if ($request->wantsJson()) {
-      return response()->json([
-        'checkItems' => $checkItems,
-        'search' => $search,
-        'perPage' => $perPage,
-        'totalEntries' => $totalEntries,
-      ]);
-    }
-
-    return Inertia::render('CheckItemList', [
-      'checkItems' => $checkItems,
-      'search' => $search,
-      'perPage' => $perPage,
-      'totalEntries' => $totalEntries,
-    ]);
-  }
-
-
-  public function getAllCheckItems(Request $request)
-  {
-    $checklistID = $request->input('checklist_id');
-
-    return CheckItem::where('checklist_id', $checklistID)->get();
-  }
-
-  private function validateEntry(Request $request, $id = null)
-  {
-    return $request->validate(
-      [
-        'name'      => 'required|string|max:255',
-        'description' => 'nullable|string',
-      ],
-    );
-  }
-
-  public function bulkUpdate(Request $request)
-  {
-    $rows = $request->all();
-    $user = session('emp_data');
-
-    DB::transaction(function () use ($rows, $user) {
-
-      foreach ($rows as $id => $fields) {
-
-        if (empty($fields)) {
-          continue;
-        }
-
-        $model = CheckItem::find($id);
-
-        if (!$model) {
-          continue;
-        }
-
-        $updateData = [];
-
-        foreach ($fields as $column => $value) {
-          $updateData[$column] = $value;
-        }
-
-        $updateData['modified_by'] = $user['emp_id'] ?? null;
-
-        if (!empty($updateData)) {
-          $model->update($updateData);
-        }
-      }
-    });
-
-    return response()->json(['status' => 'ok']);
-  }
-
-  public function store(Request $request)
-  {
-    $validated = $this->validateEntry($request);
-    $user_id = session('emp_data')['emp_id'] ?? null;
-
-    $entry = CheckItem::create([
-      ...$validated,
-      'modified_by' => $user_id,
-
-    ]);
-
-    return response()->json([
-      'message' => 'Check Item created successfully',
-      'data'    => $entry,
-    ], 201);
-  }
-
-  public function upsert($id = null)
-  {
-    $item = $id ? CheckItem::findOrFail($id) : null;
-
-    return Inertia::render('CheckItemUpsert', [
-      'toBeEdit' => $item,
-    ]);
-  }
-
-  public function update(Request $request, $id)
-  {
-    $item = CheckItem::findOrFail($id);
-
-    $validated = $this->validateEntry($request, $id);
-    $user_id = session('emp_data')['emp_id'] ?? null;
-
-    $item->update([
-      ...$validated,
-      'modified_by' => $user_id,
-
-    ]);
-
-    return response()->json([
-      'message' => 'Check Item updated successfully',
-      'data'    => $item,
-    ]);
-  }
-
-  public function destroy($id)
-  {
-    try {
-      $item = CheckItem::findOrFail($id);
-      $item->delete();
-
-      return response()->json([
-        'success' => true,
-        'message' => 'Check Item deleted successfully',
-      ]);
-    } catch (ModelNotFoundException $e) {
-      return response()->json([
-        'status' => 'error',
-        'message' => 'Check Item not found. Please verify the ID.',
-      ], 404);
-    }
   }
 }

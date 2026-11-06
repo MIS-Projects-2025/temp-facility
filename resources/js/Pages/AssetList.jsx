@@ -40,7 +40,12 @@ const AssetList = () => {
 	const [selectedCell, setSelectedCell] = useState(null);
 	const [locationSearchInput, setLocationSearchInput] = useState("");
 
+	const didMountRef = useRef(false);
 	useEffect(() => {
+		if (!didMountRef.current) {
+			didMountRef.current = true;
+			return;
+		}
 		const timer = setTimeout(() => {
 			router.reload({
 				data: {

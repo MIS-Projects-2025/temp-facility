@@ -80,7 +80,12 @@ const UtilityTrashList = () => {
 		cancel: mutateCancel,
 	} = useMutation();
 
+	const didMountRef = useRef(false);
 	useEffect(() => {
+		if (!didMountRef.current) {
+			didMountRef.current = true;
+			return;
+		}
 		const timer = setTimeout(() => {
 			router.reload({
 				data: {
@@ -156,7 +161,7 @@ const UtilityTrashList = () => {
 			performChecklistModalRef.current.close();
 			toast.success("Checklist performed successfully!");
 		} catch (error) {
-			toast.error(mutateErrorMessage);
+			toast.error(error?.message);
 			console.error(error);
 		}
 	};
@@ -180,7 +185,7 @@ const UtilityTrashList = () => {
 			verifyModalRef.current.close();
 			toast.success("Entry verified successfully!");
 		} catch (error) {
-			toast.error(mutateErrorMessage);
+			toast.error(error?.message);
 			console.error(error);
 		}
 	};

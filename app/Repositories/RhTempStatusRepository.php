@@ -1,6 +1,6 @@
 <?php
 
-namespace App\omega\Repo;
+namespace App\Repositories;
 
 use Illuminate\Http\Request;
 

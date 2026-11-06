@@ -14,6 +14,8 @@ use App\Services\BulkUpserter;
 
 class CheckItemsController extends Controller
 {
+  use \App\Traits\MassDeletesByIds;
+
   public function index(Request $request)
   {
     $search = $request->input('search', '');
@@ -47,11 +49,16 @@ class CheckItemsController extends Controller
     ]);
   }
 
+  public function massGenocide(Request $request)
+  {
+    return $this->massDeleteByIds($request, CheckItem::class);
+  }
+
   public function getAllCheckItems(Request $request)
   {
     $checklistID = $request->input('checklist_id');
 
-    return CheckItem::where('checklist_id', $checklistID)->get();
+    return CheckItem::orderBy('name')->get();
   }
 
   private function validateEntry(Request $request, $id = null)

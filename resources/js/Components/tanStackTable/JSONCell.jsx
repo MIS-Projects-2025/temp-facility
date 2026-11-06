@@ -1,52 +1,48 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { FaArrowRight, FaKey, FaPlus, FaTrash } from "react-icons/fa";
 
 const JSONcell = ({ row, getValue, table, column }) => {
-	const initialProps = getValue() || {};
-	const [properties, setProperties] = useState(Object.entries(initialProps));
+	const value = getValue();
+	const serialized = JSON.stringify(value ?? {});
+	const [properties, setProperties] = useState(() =>
+		Object.entries(value || {}),
+	);
 
-	const handleBlur = () => {
+	// re-sync when the table value changes (e.g. after "Reset")
+	useEffect(() => {
+		setProperties(Object.entries(JSON.parse(serialized)));
+	}, [serialized]);
+
+	const commit = (entries) => {
 		table.options.meta?.updateData(
 			row.index,
 			column?.columnDef.accessorKey,
-			Object.fromEntries(properties),
+			Object.fromEntries(entries),
 		);
 	};
 
 	const updateProperty = (index, type, newVal) => {
-		setProperties((prev) => {
-			const copy = [...prev];
-			if (type === "key") copy[index][0] = newVal;
-			else copy[index][1] = newVal;
-			return copy;
-		});
+		setProperties((prev) =>
+			prev.map((entry, i) => {
+				if (i !== index) return entry;
+				return type === "key" ? [newVal, entry[1]] : [entry[0], newVal];
+			}),
+		);
 	};
 
 	const deleteProperty = (index) => {
-		setProperties((prev) => {
-			const copy = [...prev];
-			copy.splice(index, 1);
-
-			table.options.meta?.updateData(
-				row.index,
-				column?.columnDef.accessorKey,
-				Object.fromEntries(copy),
-			);
-
-			return copy;
-		});
+		const next = properties.filter((_, i) => i !== index);
+		setProperties(next);
+		commit(next);
 	};
 
 	const addProperty = () => {
-		setProperties((prev) => {
-			const copy = [...prev, ["", ""]];
-			return copy;
-		});
+		setProperties((prev) => [...prev, ["", ""]]);
 	};
 
 	return (
 		<div className="flex w-full flex-col gap-2 border border-base-content/20">
-			{properties.map(([key, value], index) => (
+			{properties.map(([key, val], index) => (
 				<div key={index} className="flex items-center gap-2 group">
 					<label className="input bg-base-100/20 flex-1">
 						<FaKey className="opacity-25" />
@@ -55,7 +51,7 @@ const JSONcell = ({ row, getValue, table, column }) => {
 							value={key}
 							placeholder="Key"
 							onChange={(e) => updateProperty(index, "key", e.target.value)}
-							onBlur={handleBlur}
+							onBlur={() => commit(properties)}
 						/>
 					</label>
 
@@ -63,10 +59,10 @@ const JSONcell = ({ row, getValue, table, column }) => {
 						<FaArrowRight className="opacity-25" />
 						<input
 							type="text"
-							value={value}
+							value={val}
 							placeholder="Value"
 							onChange={(e) => updateProperty(index, "value", e.target.value)}
-							onBlur={handleBlur}
+							onBlur={() => commit(properties)}
 						/>
 					</label>
 

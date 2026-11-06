@@ -38,7 +38,7 @@ const MultiSelectSearchableDropdown = memo(
 		openTrigger = 0,
 		goToPage = () => {},
 	}) {
-		const id = useId();
+		const id = useId().replace(/[^a-zA-Z0-9_-]/g, "");
 		const popoverId = `popover-${id}`;
 		const anchorName = `--anchor-${id}`;
 

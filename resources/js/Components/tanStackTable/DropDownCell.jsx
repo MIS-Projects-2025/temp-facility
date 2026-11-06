@@ -6,7 +6,7 @@ import { FaCheck } from "react-icons/fa6";
 // or just an array of strings: ["text", "number", "select"]
 const DropdownCell = ({ row, getValue, table, column, options = [] }) => {
 	const value = getValue() ?? "";
-	const id = useId();
+	const id = useId().replace(/[^a-zA-Z0-9_-]/g, "");
 	const popoverId = `popover-${id}`;
 	const anchorId = `--anchor-${id}`;
 

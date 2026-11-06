@@ -13,7 +13,7 @@ function renderEventContent(eventInfo) {
 	console.log("🚀 ~ renderEventContent ~ eventInfo:", eventInfo);
 	const isOverdue = eventInfo.event.extendedProps.is_overdue;
 	const type = eventInfo.event.extendedProps.type;
-	const today = new Date().toISOString().split("T")[0];
+	const today = new Date().toLocaleDateString("en-CA");
 	const isDueToday =
 		eventInfo.event.extendedProps.schedule?.next_due_date === today;
 	const typeSymbol = type === "asset" ? "A" : "G";
@@ -56,7 +56,7 @@ const PMScheduleCalendar = () => {
 	const [selectedSchedule, setSelectedSchedule] = useState(null);
 	const [notes, setNotes] = useState("");
 	const [doneDate, setDoneDate] = useState(
-		() => new Date().toISOString().split("T")[0],
+		() => new Date().toLocaleDateString("en-CA"),
 	);
 
 	const recordModalRef = useRef(null);
@@ -68,7 +68,7 @@ const PMScheduleCalendar = () => {
 		console.log("🚀 ~ openModal ~ schedule:", schedule);
 		setSelectedSchedule(schedule);
 		setNotes("");
-		setDoneDate(new Date().toISOString().split("T")[0]);
+		setDoneDate(new Date().toLocaleDateString("en-CA"));
 		recordModalRef.current?.open();
 	};
 
@@ -151,14 +151,14 @@ const PMScheduleCalendar = () => {
 						className={`tab ${tab === "scheduled" ? "tab-active text-primary font-extrabold border-primary" : ""}`}
 						onClick={() => setTab("scheduled")}
 					>
-						Scheduled ({assetsWithDueDate.length})
+						Scheduled ({assetsWithDueDate.length + GlobalPmwithDueDate.length})
 					</a>
 					<a
 						role="tab"
 						className={`tab ${tab === "never-done" ? "tab-active text-primary font-extrabold border-primary" : ""}`}
 						onClick={() => setTab("never-done")}
 					>
-						Never Done ({neverDone.length})
+						Never Done ({neverDone.length + globalNeverDone.length})
 					</a>
 				</div>
 
@@ -216,7 +216,7 @@ const PMScheduleCalendar = () => {
 											</span>
 											{s.type === "asset" ? (
 												<span>
-													{s.asset.code}{" "}
+													{s.asset?.code}{" "}
 													<span className="opacity-50">
 														@{s.asset?.location?.location_name}
 													</span>
@@ -285,7 +285,7 @@ const PMScheduleCalendar = () => {
 								type="date"
 								className="input input-bordered input-sm w-full"
 								value={doneDate}
-								max={new Date().toISOString().split("T")[0]}
+								max={new Date().toLocaleDateString("en-CA")}
 								onChange={(e) => setDoneDate(e.target.value)}
 							/>
 						</div>

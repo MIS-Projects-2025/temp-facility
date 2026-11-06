@@ -148,6 +148,19 @@ function SpeedometerCard({
 	);
 }
 
+const POWER_STATUSES = ["running", "stand by", "standby", "on", "off"];
+
+function findPowerItem(items, runningHoursName) {
+	const found = Object.entries(items ?? {}).find(
+		([name, item]) =>
+			name !== runningHoursName &&
+			POWER_STATUSES.includes(
+				String(item?.latest?.item_status ?? "").trim().toLowerCase(),
+			),
+	);
+	return found ? found[1] : null;
+}
+
 export default function SpeedometerGroup({
 	title,
 	entries,
@@ -173,7 +186,7 @@ export default function SpeedometerGroup({
 							key={assetName}
 							assetName={assetName}
 							runningHoursItem={items[runningHoursName] ?? null}
-							powerItem={items["Vacuum Pump"] ?? null}
+							powerItem={items["Vacuum Pump"] ?? findPowerItem(items, runningHoursName)}
 							speedometerData={speedometerData}
 							maxValue={maxValue}
 						/>

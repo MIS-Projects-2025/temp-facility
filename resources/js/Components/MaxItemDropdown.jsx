@@ -7,7 +7,7 @@ const MaxItemDropdown = ({
 	changeMaxItemPerPage,
 	maxItems = [10, 25, 50, 100],
 }) => {
-	const id = useId();
+	const id = useId().replace(/[^a-zA-Z0-9_-]/g, "");
 	const popoverId = `popover-${id}`;
 	const anchorName = `--anchor-${id}`;
 

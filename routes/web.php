@@ -28,7 +28,6 @@ use App\Http\Controllers\AssetPmSchedulesController;
 use App\Http\Controllers\ChecklistItemsController;
 use App\Http\Controllers\AssetHealthBoardController;
 use App\Http\Controllers\HazardousWasteTurnOverLogSheetController;
-use App\Http\Controllers\ChemicalSDSController;
 use App\Http\Middleware\ApiAuthMiddleware;
 use App\Http\Controllers\ChecklistItemSchedulesController;
 use App\Http\Controllers\CheckItemsResultController;
@@ -104,17 +103,6 @@ Route::middleware([ApiAuthMiddleware::class])
                 ->name('update');
         });
 
-        Route::prefix('chemicals-sds')->name('chemicals-sds.')->group(function () {
-            Route::post('/add', [ChemicalSDSController::class, 'store'])
-                ->middleware(ApiPermissionMiddleware::class)
-                ->name('add');
-            Route::delete('/{id}/delete', [ChemicalSDSController::class, 'destroy'])
-                ->middleware(ApiPermissionMiddleware::class)
-                ->name('delete');
-            Route::patch('/{id}/update', [ChemicalSDSController::class, 'update'])
-                ->middleware(ApiPermissionMiddleware::class)
-                ->name('update');
-        });
 
         Route::prefix('checklist-items')->name('checklist-items.')->group(function () {
             Route::get('/', [ChecklistItemsController::class, 'index'])
@@ -154,6 +142,9 @@ Route::middleware([ApiAuthMiddleware::class])
             Route::patch('/{id}/update', [CheckItemsController::class, 'update'])
                 ->middleware(ApiPermissionMiddleware::class)
                 ->name('update');
+            Route::delete('/bulk-delete', [CheckItemsController::class, 'massGenocide'])
+                ->middleware(ApiPermissionMiddleware::class)
+                ->name('massGenocide');
             Route::patch('/bulk-update', [CheckItemsController::class, 'bulkUpdate'])
                 ->middleware(ApiPermissionMiddleware::class)
                 ->name('bulkUpdate');
@@ -179,7 +170,7 @@ Route::middleware([ApiAuthMiddleware::class])
             Route::delete('/bulk-delete', [AssetsController::class, 'massGenocide'])
                 ->middleware(ApiPermissionMiddleware::class)
                 ->name('massGenocide');
-            Route::prefix('assets/{assetId}')->group(function () {
+            Route::prefix('{assetId}')->group(function () {
                 Route::post('record-done-date', [PmHistoryController::class, 'recordAssetPmDoneDate'])
                     ->middleware(ApiPermissionMiddleware::class)
                     ->name('recordDoneDate');
@@ -467,7 +458,7 @@ Route::prefix('schedules')->name('schedules.')->group(
 Route::prefix('pm')->name('pm.')->group(
     function () {
         Route::prefix('history')->name('history.')->group(function () {
-            Route::get('/', [PmHistoryController::class, 'index'])->name('index');
+            
         });
         Route::prefix('schedule')->name('schedule.')->group(function () {
             Route::get('/', [PmHistoryController::class, 'getAllSchedule'])->name('getAllSchedule');

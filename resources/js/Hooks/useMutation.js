@@ -1,8 +1,6 @@
-import { useState, useRef, useEffect } from "react";
-import { useToast } from "./useToast";
+import { useEffect, useRef, useState } from "react";
 
 export function useMutation() {
-  const toast = useToast();
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState(null);
   const [errorData, setErrorData] = useState(null);
@@ -10,29 +8,27 @@ export function useMutation() {
   const abortControllerRef = useRef(null);
 
   const mutate = async (url, options = {}) => {
-    if (abortControllerRef.current) {
-      abortControllerRef.current.abort();
-    }
+    abortControllerRef.current?.abort();
 
     const controller = new AbortController();
     abortControllerRef.current = controller;
 
     setIsLoading(true);
     setErrorMessage(null);
+    setErrorData(null);
 
     try {
       const { method = "POST", body, isFormData = false, isContentTypeInclude = true } = options;
-      console.log("🚀 ~ mutate ~ body:", JSON.stringify(body))
       const token = localStorage.getItem("authify-token");
       const response = await fetch(url, {
         method,
         headers: {
           ...(isContentTypeInclude && { "Content-Type": "application/json" }),
           "Accept": "application/json",
-          "X-CSRF-TOKEN": document.querySelector('meta[name="csrf-token"]').content,
+          "X-CSRF-TOKEN": document.querySelector('meta[name="csrf-token"]')?.content ?? "",
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
-        body: body ? isFormData ? body : JSON.stringify(body) : undefined,
+        body: body ? (isFormData ? body : JSON.stringify(body)) : undefined,
         signal: controller.signal,
       });
 
@@ -51,18 +47,24 @@ export function useMutation() {
         error.data = result;
         throw error;
       }
-      
+
       setData(result);
       return result;
     } catch (error) {
-      console.log("🚀 ~ mutate ~ error:", error.data)
-      if (error.name !== "AbortError") {
-        setErrorData(error.data);
-        setErrorMessage(error.message);
-        throw error;
+      if (error.name === "AbortError") {
+        // callers must not treat a cancelled request as a success
+        const cancelled = new Error("Request cancelled");
+        cancelled.name = "AbortError";
+        throw cancelled;
       }
+      setErrorData(error.data);
+      setErrorMessage(error.message);
+      throw error;
     } finally {
-      setIsLoading(false);
+      // only the newest request is allowed to turn the spinner off
+      if (abortControllerRef.current === controller) {
+        setIsLoading(false);
+      }
     }
   };
 
@@ -71,7 +73,6 @@ export function useMutation() {
       abortControllerRef.current?.abort();
     };
   }, []);
-
 
   const cancel = () => {
     abortControllerRef.current?.abort();

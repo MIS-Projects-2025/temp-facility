@@ -96,7 +96,12 @@ class ChecklistsController extends Controller
 
   public function bulkUpdate(Request $request)
   {
-    $rows = $request->all();
+    $rows = array_map(
+      fn($row) => is_array($row)
+        ? array_intersect_key($row, array_flip(['id', 'name', 'form_control_no', 'description', 'instruction']))
+        : [],
+      $request->all()
+    );
     $user = session('emp_data');
 
     $columnRules = [

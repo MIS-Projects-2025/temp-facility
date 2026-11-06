@@ -18,13 +18,17 @@ export default function TimeLine({ ranges, height = 60 }) {
 	// 	(r) => currentHour >= r.startHour && currentHour < r.endHour,
 	// );
 
-	const inRange = (hour, start, end) =>
+	const isHourInRange = (hour, start, end) =>
 		start <= end ? hour >= start && hour < end : hour >= start || hour < end; // crosses midnight
+
+	const isInRange = ranges.some((r) =>
+		isHourInRange(currentHour, r.startHour, r.endHour),
+	);
 
 	return (
 		<div className="flex flex-col items-center">
 			<div className="p-2 font-bold">
-				{inRange ? (
+				{isInRange ? (
 					<span className="text-primary">
 						You are within the allowed time. You can update the checklist now.
 					</span>
@@ -103,11 +107,11 @@ export default function TimeLine({ ranges, height = 60 }) {
 						cx={0}
 						cy={0}
 						r={2}
-						fill={inRange ? "var(--color-accent)" : "var(--color-base-content)"}
+						fill={isInRange ? "var(--color-accent)" : "var(--color-base-content)"}
 						stroke="var(--color-base-content-dim)"
 						strokeWidth={2}
 						style={{
-							filter: inRange
+							filter: isInRange
 								? "drop-shadow(0 0 4px var(--color-accent))"
 								: "none",
 						}}
@@ -115,7 +119,7 @@ export default function TimeLine({ ranges, height = 60 }) {
 					{/* Pin triangle */}
 					<path
 						d="M0,6 L-5,15 L5,15 Z"
-						fill={inRange ? "var(--color-accent)" : "var(--color-base-content)"}
+						fill={isInRange ? "var(--color-accent)" : "var(--color-base-content)"}
 						stroke="var(--color-base-content-dim)"
 						strokeWidth={1}
 					/>

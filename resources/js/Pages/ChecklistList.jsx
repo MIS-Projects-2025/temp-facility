@@ -41,7 +41,12 @@ const ChecklistList = () => {
 		cancel: mutateCancel,
 	} = useMutation();
 
+	const didMountRef = useRef(false);
 	useEffect(() => {
+		if (!didMountRef.current) {
+			didMountRef.current = true;
+			return;
+		}
 		const timer = setTimeout(() => {
 			router.reload({
 				data: {

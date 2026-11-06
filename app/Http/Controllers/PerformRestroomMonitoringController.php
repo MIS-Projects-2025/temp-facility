@@ -2,13 +2,12 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
 use App\Models\Restroom;
-use App\Models\ChemicalSDS;
 use App\Models\RestroomMonitoring;
 use App\Models\RestroomMonitoringInstance;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
-use Illuminate\Support\Facades\Log;
 
 class PerformRestroomMonitoringController extends Controller
 {
@@ -33,35 +32,30 @@ class PerformRestroomMonitoringController extends Controller
         $validated = $request->validate([
             'notes' => 'nullable|string|max:1000',
             'items' => 'required|array|min:1',
+            'items.*.fixture_id' => 'nullable|integer|exists:fixtures,id',
             'items.*.status' => 'required|string',
             'items.*.remarks' => 'nullable|string|max:500',
             'restroom_id' => 'required|integer|exists:restrooms,id',
         ]);
 
-        $notes = $validated['notes'] ?? null;
-        $restroom_id = $validated['restroom_id'];
-        $fixtures = $validated['items'];
-        $user_id = session('emp_data')['emp_id'] ?? null;
-        $checkedBy = $user_id;
+        $checkedBy = session('emp_data.emp_id');
+        abort_if(!$checkedBy, 401, 'Session expired. Please log in again.');
 
-        $restroomMonitoringInstance = RestroomMonitoringInstance::create([
-            'created_by' => $checkedBy,
-            'notes' => $notes,
-        ]);
+        DB::transaction(function () use ($validated, $checkedBy) {
+            $instance = RestroomMonitoringInstance::create([
+                'created_by' => $checkedBy,
+                'notes' => $validated['notes'] ?? null,
+            ]);
 
-        $restroomMonitoringInstanceId = $restroomMonitoringInstance->id;
-
-        $insertData = array_map(function ($item) use ($restroomMonitoringInstanceId, $checkedBy, $restroom_id) {
-            return [
-                'restroom_id' => $restroom_id,
+            RestroomMonitoring::insert(array_map(fn($item) => [
+                'restroom_id' => $validated['restroom_id'],
+                'fixture_id' => $item['fixture_id'] ?? null,
                 'checked_by' => $checkedBy,
                 'status' => $item['status'],
                 'remarks' => $item['remarks'] ?? null,
-                'restroom_monitoring_instance_id' => $restroomMonitoringInstanceId
-            ];
-        }, $fixtures);
-
-        RestroomMonitoring::insert($insertData);
+                'restroom_monitoring_instance_id' => $instance->id,
+            ], array_values($validated['items'])));
+        });
 
         return response()->json(['status' => 'ok']);
     }

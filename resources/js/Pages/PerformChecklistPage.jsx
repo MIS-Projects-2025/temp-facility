@@ -255,6 +255,7 @@ const PerformChecklistPage = () => {
 					</MultiSelectSearchableDropdown>
 
 					<MultiSelectSearchableDropdown
+						key={selectedChecklist?.id ?? "no-checklist"}
 						modalId={assetModalID}
 						options={
 							assets?.assets?.map((item) => ({

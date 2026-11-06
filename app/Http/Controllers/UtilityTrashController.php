@@ -3,20 +3,13 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
+use Illuminate\Support\Arr;
 use Inertia\Inertia;
 use App\Models\UtilityTrash;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
 
 class UtilityTrashController extends Controller
 {
-
-  // public function index(Request $request)
-  // {
-  //   return Inertia::render('UtilityTrash');
-  // }
-
   public function index(Request $request)
   {
     $search = $request->input('search', '');
@@ -33,7 +26,6 @@ class UtilityTrashController extends Controller
         'verifiedBy:EMPLOYID,EMPNAME,JOB_TITLE,DEPARTMENT',
       ])
       ->when($search, function ($query, $search) {
-        // todo : add search for performed_by and verified_by using the name
         $query->where(function ($q) use ($search) {
           $q->orWhere('performed_by', 'like', "%{$search}%");
           $q->orWhere('verified_by', 'like', "%{$search}%");
@@ -47,7 +39,11 @@ class UtilityTrashController extends Controller
         }
       })
       ->when($startDate && $endDate, function ($query) use ($startDate, $endDate) {
-        $query->whereBetween('date', [$startDate, $endDate]);
+        // 'date' is stored as Manila wall-clock time (see perform())
+        $query->whereBetween('date', [
+          $startDate->copy()->setTimezone('Asia/Manila')->toDateTimeString(),
+          $endDate->copy()->setTimezone('Asia/Manila')->toDateTimeString(),
+        ]);
       })
       ->orderBy('date', 'desc')
       ->paginate($perPage)
@@ -65,6 +61,8 @@ class UtilityTrashController extends Controller
       ],
       'isNotVerified' => $isNotVerified,
       'isVerified' => $isVerified,
+      'startDate' => $startDate,
+      'endDate' => $endDate,
       'search' => $search,
       'perPage' => $perPage,
       'totalEntries' => $totalEntries,
@@ -73,40 +71,37 @@ class UtilityTrashController extends Controller
 
   public function bulkVerify(Request $request)
   {
-    $rows = $request->all();
-    $user = session('emp_data');
-    DB::transaction(function () use ($rows, $user) {
+    $userId = session('emp_data.emp_id');
+    abort_if(!$userId, 401, 'Session expired. Please log in again.');
 
-      foreach ($rows as $id => $fields) {
-        $model = UtilityTrash::find($rows['id']);
+    $ids = collect(Arr::wrap($request->input('id')))->filter()->values()->all();
 
-        if (!$model) {
-          Log::info('No model found for id ' . $id);
-          continue;
-        }
+    if (empty($ids)) {
+      return response()->json(['status' => 'error', 'message' => 'No entry selected.'], 422);
+    }
 
-        $updateData['verified_by'] = $user['emp_id'] ?? null;
+    $updated = UtilityTrash::whereKey($ids)
+      ->whereNull('verified_by')
+      ->update(['verified_by' => $userId]);
 
-        if (!empty($updateData)) {
-          $model->update($updateData);
-        }
-      }
-    });
+    if ($updated === 0) {
+      return response()->json(['status' => 'error', 'message' => 'Entry is already verified.'], 409);
+    }
 
     return response()->json(['status' => 'ok']);
   }
 
   public function perform(Request $request)
   {
-    $performDate = Carbon::parse($request->input('date'))->setTimezone('Asia/Manila');
-    $user = session('emp_data');
+    $request->validate(['date' => 'required|date']);
 
-    $updateData['date'] = $performDate;
-    $updateData['performed_by'] = $user['emp_id'] ?? null;
+    $userId = session('emp_data.emp_id');
+    abort_if(!$userId, 401, 'Session expired. Please log in again.');
 
-    if (!empty($updateData)) {
-      UtilityTrash::insert($updateData);
-    }
+    UtilityTrash::insert([
+      'date' => Carbon::parse($request->input('date'))->setTimezone('Asia/Manila'),
+      'performed_by' => $userId,
+    ]);
 
     return response()->json(['status' => 'ok']);
   }

@@ -82,7 +82,7 @@ export default function RestroomMonitoringForm({
 
 						<input
 							type="text"
-							value={watch(`items.${index}.status`)}
+							
 							{...register(`items.${index}.status`, { required: true })}
 						/>
 

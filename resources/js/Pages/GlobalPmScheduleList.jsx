@@ -39,7 +39,12 @@ const GlobalPmScheduleList = () => {
 	const [selectedCell, setSelectedCell] = useState(null);
 	const [globalPmsSearchInput, setGlobalPmsSearchInput] = useState("");
 
+	const didMountRef = useRef(false);
 	useEffect(() => {
+		if (!didMountRef.current) {
+			didMountRef.current = true;
+			return;
+		}
 		const timer = setTimeout(() => {
 			router.reload({
 				data: {
@@ -363,7 +368,7 @@ const GlobalPmScheduleList = () => {
 					onSearchChange={handleGlobalPmSearchChange}
 					links={globalPm?.globalPms?.links || null}
 					currentPage={globalPm?.globalPms?.current_page || 1}
-					goToPage={() => goToPageGlobalPms()}
+					goToPage={goToPageGlobalPms}
 					itemName="Global PM List"
 					isLoading={isLoadingGlobalPm}
 					prompt="Select Global PM"

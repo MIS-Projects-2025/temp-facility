@@ -1,8 +1,8 @@
 import CheckBoxColumn from "@/Components/tanStackTable/CheckBoxColumn";
-import DefaultEditableColumn from "@/Components/tanStackTable/defaultEditableColumn";
+import DefaultEditableColumn from "@/Components/tanStackTable/DefaultEditableColumn";
 import updateNested from "@/Utils/updateNested";
 import { getCoreRowModel, useReactTable } from "@tanstack/react-table";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 /**
  * useEditableTable - reusable hook for editable React Table
@@ -11,8 +11,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
  * @param {Array} columns - column definitions
  * @param {Object} options - optional settings
  *        options.defaultColumn - default column definition
- * 				options.isMultipleSelection - enable multiple selection
- *        options.onEdit - callback when a cell is edited
+ *        options.isMultipleSelection - enable multiple selection
  *        options.createEmptyRow - callback to create an empty row
  *        options.columnVisibility - list of visible columns
  *        options.setColumnVisibility - callback to update column visibility
@@ -22,7 +21,6 @@ export function useEditableTable(initialData = [], columns, options = {}) {
 	const {
 		defaultColumn = DefaultEditableColumn,
 		isMultipleSelection = false,
-		onEdit,
 		createEmptyRow,
 		columnVisibility,
 		setColumnVisibility,
@@ -30,13 +28,19 @@ export function useEditableTable(initialData = [], columns, options = {}) {
 
 	const [data, setData] = useState(initialData);
 	const [editedRows, setEditedRows] = useState({});
-	console.log("🚀 ~ useEditableTable ~ data:", data);
-	console.log("🚀 ~ useEditableTable ~ editedRows:", editedRows);
 	const [originalData, setOriginalData] = useState({});
 	const [changes, setChanges] = useState([]);
+	const wasEmptyRef = useRef(false);
 
 	useEffect(() => {
 		const rows = initialData;
+		const isEmpty = rows.length === 0;
+
+		// callers often pass `something || []` which is a brand new array on every render;
+		// without this guard an empty table would reset itself forever
+		if (isEmpty && wasEmptyRef.current) return;
+		wasEmptyRef.current = isEmpty;
+
 		setData(rows);
 
 		const map = {};
@@ -47,33 +51,25 @@ export function useEditableTable(initialData = [], columns, options = {}) {
 		setEditedRows({});
 	}, [initialData]);
 
-	const updateData = useCallback(
-		(rowIndex, accessorKey, value) => {
-			setData((prevData) => {
-				const row = prevData[rowIndex];
-				const updatedRow = updateNested(row, accessorKey, value);
+	const updateData = useCallback((rowIndex, accessorKey, value) => {
+		setData((prevData) => {
+			const row = prevData[rowIndex];
+			const updatedRow = updateNested(row, accessorKey, value);
 
-				console.log("🚀 ~ useEditableTable ~ row:", row);
-				console.log("🚀 ~ useEditableTable ~ updatedRow:", updatedRow);
+			if (JSON.stringify(row) === JSON.stringify(updatedRow)) return prevData;
 
-				if (JSON.stringify(row) === JSON.stringify(updatedRow)) return prevData;
+			const newData = [...prevData];
+			newData[rowIndex] = updatedRow;
 
-				const newData = [...prevData];
-				newData[rowIndex] = updatedRow;
+			const rowId = row.id;
+			setEditedRows((prev) => ({
+				...prev,
+				[rowId]: updatedRow,
+			}));
 
-				const rowId = row.id;
-				setEditedRows((prev) => {
-					return {
-						...prev,
-						[rowId]: updatedRow,
-					};
-				});
-
-				return newData;
-			});
-		},
-		[onEdit],
-	);
+			return newData;
+		});
+	}, []);
 
 	const derivedColumns = useMemo(() => {
 		const visibleColumns = columns.filter((col) => !col.meta?.hidden);
@@ -81,7 +77,7 @@ export function useEditableTable(initialData = [], columns, options = {}) {
 		if (!isMultipleSelection) return visibleColumns;
 
 		return [CheckBoxColumn, ...visibleColumns];
-	}, [columns, isMultipleSelection, CheckBoxColumn]);
+	}, [columns, isMultipleSelection]);
 
 	const table = useReactTable({
 		data,
@@ -135,34 +131,34 @@ export function useEditableTable(initialData = [], columns, options = {}) {
 
 		setEditedRows({});
 		setChanges([]);
-		const originalRows = Object.values(originalData);
-		setData(originalRows);
+		setData(initialData); // keeps the server's row order
 	};
 
 	const getChanges = () => {
-		const changes = [];
+		const result = [];
+		const norm = (v) => (v === undefined || v === "" ? null : v);
 
 		for (const rowId in editedRows) {
 			const original = originalData[rowId] || {};
 			const edited = editedRows[rowId];
 
 			for (const field in edited) {
-				const before = original[field] || null;
+				const before = original[field];
 				const after = edited[field];
 
-				if (before !== after) {
-					changes.push({
+				if (JSON.stringify(norm(before)) !== JSON.stringify(norm(after))) {
+					result.push({
 						rowId,
 						field,
-						before,
+						before: before ?? null,
 						after,
 					});
 				}
 			}
 		}
 
-		setChanges(changes);
-		return changes;
+		setChanges(result);
+		return result;
 	};
 
 	return {

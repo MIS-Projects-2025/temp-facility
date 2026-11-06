@@ -71,7 +71,7 @@ class ChecklistAssetsController extends Controller
     $checklistID = $request->input('checklist_id');
 
     return ChecklistAssets::where('checklist_id', $checklistID)
-      ->with(['location'])
+      ->with(['asset.location'])
       ->get();
   }
 

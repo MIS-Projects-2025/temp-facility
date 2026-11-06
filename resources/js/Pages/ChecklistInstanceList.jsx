@@ -110,7 +110,10 @@ function ChecklistInstanceList() {
 							console.log("🚀 ~ ChecklistInstanceList ~ row:", row);
 							const submission_type = row.original?.submission_type;
 							const checklist = row.original.checklist;
-							const isVerified = row.original.verified_at !== null;
+							const isVerified =
+								submission_type === "late"
+									? row.original.approved_at != null
+									: row.original.verified_at != null;
 
 							return (
 								<div

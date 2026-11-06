@@ -6,7 +6,7 @@ import { useToast } from "@/Hooks/useToast";
 
 const ChecklistUpsert = () => {
     const toast = useToast();
-    const { selectedChecklist: selectedChecklist } = usePage().props;
+    const { toBeEdit: selectedChecklist } = usePage().props;
     const isEdit = !!selectedChecklist;
 
     const [checklistName, setChecklistName] = useState(

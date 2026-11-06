@@ -46,7 +46,12 @@ const ChecklistAssetList = () => {
 	const [selectedCell, setSelectedCell] = useState(null);
 	const [checkItemSearchInput, setCheckItemSearchInput] = useState("");
 
+	const didMountRef = useRef(false);
 	useEffect(() => {
+		if (!didMountRef.current) {
+			didMountRef.current = true;
+			return;
+		}
 		const timer = setTimeout(() => {
 			router.reload({
 				data: {

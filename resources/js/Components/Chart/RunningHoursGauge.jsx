@@ -65,9 +65,10 @@ export default function RunningHoursGauge({
 	isNoSchedule,
 }) {
 	const clampedCurrent = Math.min(Math.max(current, 0), max);
-	const pct = (v) => `${((v / max) * 100).toFixed(4)}%`;
+	const pct = (v) => `${max > 0 ? ((v / max) * 100).toFixed(4) : 0}%`;
 
 	const status = useMemo(() => {
+		if (max <= 0) return "ok";
 		if (current >= warningUpTo) return "danger";
 		if (current >= okUpTo) return "warning";
 		return "ok";
