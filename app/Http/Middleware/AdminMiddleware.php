@@ -16,16 +16,10 @@ class AdminMiddleware
      */
     public function handle(Request $request, Closure $next): Response
     {
-        if (session('emp_data')) {
-            $checkIfExists = DB::table('admin')
-                ->where('emp_id', session('emp_data')['emp_id'])
-                ->exists();
-
-            if (!$checkIfExists) {
-                return redirect()->route('dashboard');
-            }
+        $empId = session('emp_data.emp_id');
+        if (!$empId || !DB::table('admin')->where('emp_id', $empId)->exists()) {
+            return redirect()->route('dashboard');
         }
-
         return $next($request);
     }
 }

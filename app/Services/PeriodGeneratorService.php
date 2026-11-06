@@ -2,23 +2,34 @@
 
 namespace App\Services;
 
-use Illuminate\Support\Facades\DB;
-use App\Models\Asset;
-use App\Models\ChecklistItemResult;
-use App\Constants\DueScheduleQuery;
 use Carbon\Carbon;
 
 class PeriodGeneratorService
 {
   public static function generate(Carbon $anchor, array $schedule): array
   {
+    $now     = Carbon::now('Asia/Manila');
     $current = $anchor->copy();
     $periods = [];
+    $seen    = [];
 
-    while ($current < Carbon::now('Asia/Manila')) {
-      [$periodStart, $periodEnd] = OverdueCalculatorService::derivePeriod($current, $schedule);
-      $periods[] = [$periodStart, $periodEnd];
-      $current = $periodEnd->copy()->addSecond();
+    while ($current < $now) {
+      [$start, $end] = OverdueCalculatorService::derivePeriod($current, $schedule);
+
+      if (!$start || !$end) {                       // between daily windows
+        $current = $current->copy()->addHour()->startOfHour();
+        continue;
+      }
+
+      if (!isset($seen[$start->timestamp])) {
+        $seen[$start->timestamp] = true;
+        $periods[] = [$start, $end];
+      }
+
+      $next    = $end->copy()->addSecond();
+      $current = $next->gt($current)                // guarantee forward progress
+        ? $next
+        : $current->copy()->addDay()->startOfDay();
     }
 
     return $periods;

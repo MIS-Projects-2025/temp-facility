@@ -17,6 +17,7 @@ class AssetPmSchedule extends Model
 
   protected $fillable = [
     'schedule_id',
+    'modified_by',
     'asset_id',
   ];
   public function schedule()

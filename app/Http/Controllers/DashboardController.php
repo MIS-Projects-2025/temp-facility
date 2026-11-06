@@ -1,21 +1,19 @@
+
 <?php
 
 namespace App\Http\Controllers;
 
 use App\Constants\RunningHours;
+use App\Models\Checklist;
+use App\Models\ChecklistInstance;
 use App\Repositories\CheckItemsResultRepository;
 use App\Services\AssetsService;
 use App\Services\ChecklistsService;
-use Illuminate\Http\Request;
-use Inertia\Inertia;
-use App\Models\ChecklistInstance;
-use App\Models\Checklist;
-use App\Models\MachineDevice;
-use App\Models\CheckItem;
 use App\Services\RunningHoursService;
 use Carbon\Carbon;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
+use Inertia\Inertia;
 
 class DashboardController extends Controller
 {
@@ -34,51 +32,118 @@ class DashboardController extends Controller
                 DB::raw('SUM(sub.done_items) as done_items'),
                 DB::raw('SUM(sub.overdue_items) as overdue_items'),
             ])
-            ->groupBy('sub.id', 'sub.code', 'sub.location_name', 'sub.checklist_id');
+            ->groupBy(
+                'sub.id',
+                'sub.code',
+                'sub.location_name',
+                'sub.checklist_id'
+            );
 
         $assetDetails = $assetsCollapsed->get();
 
-        // resolve category per checklist_id in one query, no N+1
+        // Resolve checklist names in one query
         $checklistIds = $assetDetails->pluck('checklist_id')->unique();
 
         $checklistNames = DB::table('checklists')
-            ->whereIn('id', $assetDetails->pluck('checklist_id')->unique())
+            ->whereIn('id', $checklistIds)
             ->pluck('name', 'id');
 
+        // Resolve schedule category per checklist
         $categoryByChecklist = DB::table('checklist_items')
-            ->join('entity_checklist_item_schedules as ecs', 'ecs.checklist_item_id', '=', 'checklist_items.id')
-            ->join('schedules as s', 's.id', '=', 'ecs.schedule_id')
+            ->join(
+                'entity_checklist_item_schedules as ecs',
+                'ecs.checklist_item_id',
+                '=',
+                'checklist_items.id'
+            )
+            ->join(
+                'schedules as s',
+                's.id',
+                '=',
+                'ecs.schedule_id'
+            )
             ->whereIn('checklist_items.checklist_id', $checklistIds)
-            ->select('checklist_items.checklist_id', 's.category')
-            ->groupBy('checklist_items.checklist_id', 's.category')
-            ->pluck('category', 'checklist_id'); // [checklist_id => category]
+            ->select(
+                'checklist_items.checklist_id',
+                's.category'
+            )
+            ->groupBy(
+                'checklist_items.checklist_id',
+                's.category'
+            )
+            ->pluck('category', 'checklist_id');
 
-        // attach category to each asset
+        // Attach schedule category to each asset
         $assetDetails = $assetDetails->map(function ($asset) use ($categoryByChecklist) {
-            $asset->schedule_category = $categoryByChecklist[$asset->checklist_id] ?? 'other';
+            $asset->schedule_category =
+                $categoryByChecklist[$asset->checklist_id] ?? 'other';
+
             return $asset;
         });
 
+        // Group assets by schedule category and checklist
         $summary = $assetDetails
             ->groupBy('schedule_category')
             ->map(function ($assets, $scheduleName) use ($checklistNames) {
-                $byChecklist = $assets->groupBy('checklist_id')->map(function ($checklistAssets, $checklistId) use ($checklistNames) {
-                    return [
-                        'checklist_id'        => $checklistId,
-                        'checklist_name' => $checklistNames[$checklistId] ?? 'Unknown',
-                        'total_assets'        => $checklistAssets->count(),
-                        'assets_complete'     => $checklistAssets->filter(fn($a) => $a->due_items == 0 && $a->done_items > 0)->values(),
-                        'assets_partial'      => $checklistAssets->filter(fn($a) => $a->due_items > 0 && $a->done_items > 0)->values(),
-                        'assets_not_started'  => $checklistAssets->filter(fn($a) => $a->due_items > 0 && $a->done_items == 0)->values(),
-                        'assets_idle'         => $checklistAssets->filter(fn($a) => $a->due_items == 0 && $a->done_items == 0)->values(),
-                        'assets_overdue'      => $checklistAssets->filter(fn($a) => $a->overdue_items > 0)->values(),
-                    ];
-                })->values();
+
+                $byChecklist = $assets
+                    ->groupBy('checklist_id')
+                    ->map(function ($checklistAssets, $checklistId) use ($checklistNames) {
+
+                        return [
+                            'checklist_id' => $checklistId,
+
+                            'checklist_name' =>
+                            $checklistNames[$checklistId] ?? 'Unknown',
+
+                            'total_assets' => $checklistAssets->count(),
+
+                            'assets_complete' => $checklistAssets
+                                ->filter(
+                                    fn($a) =>
+                                    $a->due_items == 0 &&
+                                        $a->done_items > 0
+                                )
+                                ->values(),
+
+                            'assets_partial' => $checklistAssets
+                                ->filter(
+                                    fn($a) =>
+                                    $a->due_items > 0 &&
+                                        $a->done_items > 0
+                                )
+                                ->values(),
+
+                            'assets_not_started' => $checklistAssets
+                                ->filter(
+                                    fn($a) =>
+                                    $a->due_items > 0 &&
+                                        $a->done_items == 0
+                                )
+                                ->values(),
+
+                            'assets_idle' => $checklistAssets
+                                ->filter(
+                                    fn($a) =>
+                                    $a->due_items == 0 &&
+                                        $a->done_items == 0
+                                )
+                                ->values(),
+
+                            'assets_overdue' => $checklistAssets
+                                ->filter(
+                                    fn($a) =>
+                                    $a->overdue_items > 0
+                                )
+                                ->values(),
+                        ];
+                    })
+                    ->values();
 
                 return [
                     'schedule_category' => $scheduleName,
-                    'total_assets'      => $assets->count(),
-                    'checklists'        => $byChecklist,
+                    'total_assets' => $assets->count(),
+                    'checklists' => $byChecklist,
                 ];
             })
             ->values();
@@ -88,70 +153,119 @@ class DashboardController extends Controller
 
     public function index(Request $request)
     {
-        // $machineDevices = MachineDevice::all();
+        /*
+        |--------------------------------------------------------------------------
+        | Running Hours
+        |--------------------------------------------------------------------------
+        | RunningHoursService::forChecklist() handles:
+        | - Checklist lookup
+        | - Running-hours item name lookup
+        | - Latest and first results retrieval
+        | - Running-hours computation
+        */
 
-        // Log::info("machineDevices: ", [$machineDevices]);
+        $vacuumRunningHours = RunningHoursService::forChecklist(
+            'vacuum_pump'
+        );
 
-        $vacuumChecklistId = Checklist::where('slug', 'vacuum_pump')->value('id');
-        $airCompressorChecklistId = Checklist::where('slug', 'revised_air_compressor_unit')->value('id');
-        $gensetTestRunChecklistId = Checklist::where('slug', 'generator_test_run_monitoring_checklist')->value('id');
+        $airCompressorRunningHours = RunningHoursService::forChecklist(
+            'revised_air_compressor_unit'
+        );
 
-        $gensetRunningHoursSlug = 'running_hours_(w/_load)';
+        $gensetRunningHours = RunningHoursService::forChecklist(
+            'generator_test_run_monitoring_checklist',
+            'running_hours_(w/_load)'
+        );
 
-        $vaccumRunningHoursName = Checklist::find($vacuumChecklistId)
-            ->items()
-            ->where('slug', 'running_hours')
-            ->value('name');
-
-        $airCompressorRunningHoursName = Checklist::find($airCompressorChecklistId)
-            ->items()
-            ->where('slug', 'running_hours')
-            ->value('name');
-
-        $gensetRunningHoursName = Checklist::find($gensetTestRunChecklistId)
-            ->items()
-            ->where('slug', $gensetRunningHoursSlug)
-            ->value('name');
+        /*
+        |--------------------------------------------------------------------------
+        | Other Dashboard Data
+        |--------------------------------------------------------------------------
+        */
 
         $checkItemsResultsRepo = new CheckItemsResultRepository();
-        $checklistService = new ChecklistsService();
 
-        $vacuumLatestResults = $checkItemsResultsRepo->getLastAndFirstSinceLastPmByChecklist($vacuumChecklistId);
-        $vacuumLatestResults = RunningHoursService::enrichWithRunningHours($vacuumLatestResults);
+        $allLatestStatusResults = $checkItemsResultsRepo
+            ->getAllStatusResults();
 
-        $airCompressorLatestResults = $checkItemsResultsRepo->getLastAndFirstSinceLastPmByChecklist($airCompressorChecklistId);
-        $airCompressorLatestResults = RunningHoursService::enrichWithRunningHours($airCompressorLatestResults);
-
-        $gensetLatestResults = $checkItemsResultsRepo->getLastAndFirstSinceLastPmByChecklist($gensetTestRunChecklistId);
-        $gensetLatestResults = RunningHoursService::enrichWithRunningHours($gensetLatestResults, $gensetRunningHoursSlug);
-
-        $allLatestStatusResults = $checkItemsResultsRepo->getAllStatusResults();
         $assetsOverview = self::getOverallChecklistState();
-        $checklistsOverview = (new ChecklistsService())->getAllChecklistsWithDueAssets();
 
-        $unverifiedToday = ChecklistInstance::whereNull('verified_at')->whereDate('created_at', Carbon::today())->count();
-        $unverifiedTotal = ChecklistInstance::whereNull('verified_at')->count();
+        $checklistsOverview = (new ChecklistsService())
+            ->getAllChecklistsWithDueAssets();
+
+        $pending = ChecklistInstance::query()->where(function ($q) {
+            $q->where(fn($q) => $q->where('submission_type', 'late')->whereNull('approved_at'))
+                ->orWhere(fn($q) => $q->where(fn($q) => $q->where('submission_type', '!=', 'late')->orWhereNull('submission_type'))
+                    ->whereNull('verified_at'));
+        });
+
+        $unverifiedTotal = (clone $pending)->count();
+        $unverifiedToday = (clone $pending)->whereDate('created_at', today())->count();
+
+        /*
+        |--------------------------------------------------------------------------
+        | Dashboard Response
+        |--------------------------------------------------------------------------
+        */
 
         return Inertia::render('Dashboard', [
-            'vacuum_latest_results' => $vacuumLatestResults,
-            'air_compressor_latest_result' => $airCompressorLatestResults,
-            'genset_latest_result' => $gensetLatestResults,
-            'genset_running_hours_name' => $gensetRunningHoursName,
-            'vaccum_running_hours_name' => $vaccumRunningHoursName,
-            'air_compressor_running_hours_name' => $airCompressorRunningHoursName,
-            'vacuum_running_hours_ok' => RunningHours::VACUUM_RUNNING_HOURS_OK,
-            'vacuum_running_hours_warning' => RunningHours::VACUUM_RUNNING_HOURS_WARNING,
-            'vacuum_running_hours_danger' => RunningHours::VACUUM_RUNNING_HOURS_DANGER,
-            'air_compressor_running_hours_ok' => RunningHours::AIR_COMPRESSOR_RUNNING_HOURS_OK,
-            'air_compressor_running_hours_warning' => RunningHours::AIR_COMPRESSOR_RUNNING_HOURS_WARNING,
-            'air_compressor_running_hours_danger' => RunningHours::AIR_COMPRESSOR_RUNNING_HOURS_DANGER,
 
-            'assets_due' => $assetsOverview,
-            'checklists_overview' => $checklistsOverview,
-            'unverified_today' => $unverifiedToday,
-            'unverified_total' => $unverifiedTotal,
+            // Vacuum Pump
+            'vacuum_latest_results' =>
+            $vacuumRunningHours['results'],
 
-            'all_latest_status_results' => $allLatestStatusResults
+            'vaccum_running_hours_name' =>
+            $vacuumRunningHours['name'],
+
+            'vacuum_running_hours_ok' =>
+            RunningHours::VACUUM_RUNNING_HOURS_OK,
+
+            'vacuum_running_hours_warning' =>
+            RunningHours::VACUUM_RUNNING_HOURS_WARNING,
+
+            'vacuum_running_hours_danger' =>
+            RunningHours::VACUUM_RUNNING_HOURS_DANGER,
+
+            // Air Compressor
+            'air_compressor_latest_result' =>
+            $airCompressorRunningHours['results'],
+
+            'air_compressor_running_hours_name' =>
+            $airCompressorRunningHours['name'],
+
+            'air_compressor_running_hours_ok' =>
+            RunningHours::AIR_COMPRESSOR_RUNNING_HOURS_OK,
+
+            'air_compressor_running_hours_warning' =>
+            RunningHours::AIR_COMPRESSOR_RUNNING_HOURS_WARNING,
+
+            'air_compressor_running_hours_danger' =>
+            RunningHours::AIR_COMPRESSOR_RUNNING_HOURS_DANGER,
+
+            // Genset
+            'genset_latest_result' =>
+            $gensetRunningHours['results'],
+
+            'genset_running_hours_name' =>
+            $gensetRunningHours['name'],
+
+            // Checklist Overview
+            'assets_due' =>
+            $assetsOverview,
+
+            'checklists_overview' =>
+            $checklistsOverview,
+
+            // Unverified Checklist Instances
+            'unverified_today' =>
+            $unverifiedToday,
+
+            'unverified_total' =>
+            $unverifiedTotal,
+
+            // Latest Status Results
+            'all_latest_status_results' =>
+            $allLatestStatusResults,
         ]);
     }
 }

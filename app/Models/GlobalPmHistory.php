@@ -24,8 +24,8 @@ class GlobalPmHistory extends Model
         'created_at' => 'datetime',
     ];
 
-    public function asset(): BelongsTo
+    public function globalPm(): BelongsTo
     {
-        return $this->belongsTo(GlobalPm::class);
+        return $this->belongsTo(GlobalPm::class, 'global_pm_id');
     }
 }

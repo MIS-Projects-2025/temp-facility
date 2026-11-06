@@ -89,7 +89,6 @@ class AssetsController extends Controller
       ]);
     }
 
-    Log::info('assets: ', [$assets]);
     return Inertia::render('AssetList', [
       'assets' => $assets,
       'search' => $search,
@@ -153,12 +152,7 @@ class AssetsController extends Controller
         Rule::unique('assets', 'code')
           ->ignore(is_numeric($id) ? $id : null),
       ],
-      'location_id' => fn($id) => [
-        'sometimes',
-        'required',
-        'int',
-        Rule::exists('locations', 'id'),
-      ],
+      'location_id' => fn($id) => ['sometimes', 'nullable', 'integer', Rule::exists('locations', 'id')],
       'properties' => 'nullable|array',
     ];
 

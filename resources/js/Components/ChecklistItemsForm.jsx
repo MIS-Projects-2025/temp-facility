@@ -348,10 +348,6 @@ export default function ChecklistItemsForm({
 		onAnyFilled(hasAnyValue);
 	}, [hasAnyValue]);
 
-	useEffect(() => {
-		onValid(isValid);
-	}, [isValid, onValid]);
-
 	const onSubmit = async (data) => {
 		try {
 			await mutate(route("api.checklist-item-result.recordResult"), {

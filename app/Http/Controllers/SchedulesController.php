@@ -32,7 +32,7 @@ class SchedulesController extends Controller
         'recurrence_type' => 'required|string|max:10',
         'schedule_name' => 'required|string|max:255',
         'schedule_description' => 'nullable|string',
-        'interval_unit' => 'nullable|integer',
+        'interval_unit' => 'nullable|string|in:hour,day,week,month,year',
         'interval_value' => 'nullable|integer',
         'days_of_week' => 'nullable|array',
         'days_of_month' => 'nullable|array',

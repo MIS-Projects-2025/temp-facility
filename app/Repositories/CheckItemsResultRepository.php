@@ -25,7 +25,7 @@ class CheckItemsResultRepository
       ->join('checklist_items as ci2', 'ci2.id', '=', 'cir2.checklist_item_id')
       ->join('check_items as ct2', 'ct2.id', '=', 'ci2.item_id')
       ->join('checklist_instances as ci', 'ci.id', '=', 'cir2.checklist_instance_id')
-      ->whereNotNull('ci.verified_at')
+      ->where(fn($q) => $q->whereNotNull('ci.verified_at')->orWhereNotNull('ci.approved_at'))
       ->when(!empty($checklistId), fn($q) => $q->where('ci2.checklist_id', $checklistId))
       ->when(!empty($checkItemNames), fn($q) => $q->whereIn('ct2.name', $checkItemNames));
 
@@ -53,7 +53,7 @@ class CheckItemsResultRepository
       ->leftjoin('schedules as s', 's.id', '=', 'ecs.schedule_id')
       ->join('check_items as ct', 'ct.id', '=', 'ci.item_id')
       ->join('assets as a', 'a.id', '=', 'cir.asset_id')
-      ->join('locations as l', 'l.id', '=', 'a.location_id')
+      ->leftJoin('locations as l', 'l.id', '=', 'a.location_id')
       ->joinSub($targetResults, 'latest', function ($join) {
         $join->on('latest.asset_id', '=', 'cir.asset_id')
           ->on('latest.checklist_item_id', '=', 'cir.checklist_item_id')
@@ -81,7 +81,7 @@ class CheckItemsResultRepository
     ]);
   }
 
-  public static function getLatestCheckItemsStatusByChecklist(int $checklistId, ?string $assetNameSearch = null)
+  public static function getLatestCheckItemsStatusByChecklist(?int $checklistId, ?string $assetNameSearch = null)
   {
     return self::getLatestVerifiedResults($checklistId, [])
       ->when($assetNameSearch, fn($q) => $q->where('a.code', 'like', '%' . $assetNameSearch . '%'))
@@ -89,7 +89,7 @@ class CheckItemsResultRepository
       ->groupBy(fn($row) => strtolower($row->asset_name));
   }
 
-  public static function getLastAndFirstSinceLastPmByChecklist(int $checklistId, ?string $assetNameSearch = null)
+  public static function getLastAndFirstSinceLastPmByChecklist(?int $checklistId, ?string $assetNameSearch = null)
   {
     $latestPm = DB::table('asset_pm_history')
       ->select('asset_id', 'done_date', DB::raw('ROW_NUMBER() OVER (PARTITION BY asset_id ORDER BY done_date DESC) as rn'));
@@ -119,8 +119,8 @@ class CheckItemsResultRepository
       ->join('check_items as ct', 'ct.id', '=', 'ci.item_id')
       ->join('assets as a', 'a.id', '=', 'cir.asset_id')
       ->join('checklist_instances as cli', 'cli.id', '=', 'cir.checklist_instance_id')
-      ->whereNotNull('cli.verified_at')
-      ->join('locations as l', 'l.id', '=', 'a.location_id')
+      ->where(fn($q) => $q->whereNotNull('cli.verified_at')->orWhereNotNull('cli.approved_at'))
+      ->leftJoin('locations as l', 'l.id', '=', 'a.location_id')
       ->leftJoinSub(
         $latestPm,
         'pm',

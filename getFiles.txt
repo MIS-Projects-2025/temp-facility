@@ -1,0 +1,237 @@
+# Entries can be:
+#   - a bare name        -> "StatusBadge"  (searched recursively as .php/.js/.jsx/.css)
+#   - a relative file    -> 'resources\js\Pages\LoadingPlan\Settings\CapacityBandSettings.jsx'
+#   - a relative folder  -> 'resources/js/Pages/LoadingPlan/Settings'  (all php/js/jsx/css inside)
+# Anything containing a slash (or starting with ./) is treated as a path.
+# Use SINGLE quotes for backslash paths so bash doesn't eat the backslashes.
+
+targets=(
+    "app/Constants/CheckItemStatusDashboard.php"
+    "app/Constants/DueScheduleQuery.php"
+    "app/Constants/RunningHours.php"
+    "app/Exceptions/InvalidDateRangeException.php"
+    "app/Http/Controllers/AssetHealthBoardController.php"
+    "app/Http/Controllers/AssetPmSchedulesController.php"
+    "app/Http/Controllers/AssetsController.php"
+    "app/Http/Controllers/AuthenticationController.php"
+    "app/Http/Controllers/CheckItemsController.php"
+    "app/Http/Controllers/CheckItemsResultController.php"
+    "app/Http/Controllers/ChecklistApprovalConfigController.php"
+    "app/Http/Controllers/ChecklistAssetsController.php"
+    "app/Http/Controllers/ChecklistInstanceController.php"
+    "app/Http/Controllers/ChecklistItemSchedulesController.php"
+    "app/Http/Controllers/ChecklistItemsController.php"
+    "app/Http/Controllers/ChecklistsController.php"
+    "app/Http/Controllers/ChemicalsController.php"
+    "app/Http/Controllers/ChemicalSDSController.php"
+    "app/Http/Controllers/ChemicalSDSMonitoringInstanceController.php"
+    "app/Http/Controllers/DashboardController.php"
+    "app/Http/Controllers/GlobalPmController.php"
+    "app/Http/Controllers/GlobalPmSchedulesController.php"
+    "app/Http/Controllers/HazardousWasteTurnOverLogSheetController.php"
+    "app/Http/Controllers/LocationController.php"
+    "app/Http/Controllers/PerformChecklistController.php"
+    "app/Http/Controllers/PerformRestroomMonitoringController.php"
+    "app/Http/Controllers/PerformSDSMonitoringController.php"
+    "app/Http/Controllers/PmHistoryController.php"
+    "app/Http/Controllers/RestroomMonitoringInstanceController.php"
+    "app/Http/Controllers/RhTempStatusController.php"
+    "app/Http/Controllers/SchedulesController.php"
+    "app/Http/Controllers/UtilityTrashController.php"
+    "app/Http/Middleware/AdminMiddleware.php"
+    "app/Http/Middleware/ApiAuthMiddleware.php"
+    "app/Http/Middleware/ApiPermissionMiddleware.php"
+    "app/Http/Middleware/AuthMiddleware.php"
+    "app/Http/Middleware/HandleInertiaRequests.php"
+    "app/Http/Middleware/SessionMiddleware.php"
+    "app/Http/Requests/Auth/LoginRequest.php"
+    "app/Http/Requests/ProfileUpdateRequest.php"
+    "app/Http/Requests/StorePmHistoryRequest.php"
+    "app/Models/Asset.php"
+    "app/Models/AssetPmHistory.php"
+    "app/Models/AssetPmSchedule.php"
+    "app/Models/CheckItem.php"
+    "app/Models/Checklist.php"
+    "app/Models/ChecklistApprovalConfig.php"
+    "app/Models/ChecklistApprover.php"
+    "app/Models/ChecklistAssets.php"
+    "app/Models/ChecklistInstance.php"
+    "app/Models/ChecklistItem.php"
+    "app/Models/ChecklistItemResult.php"
+    "app/Models/ChecklistItemSchedule.php"
+    "app/Models/Chemicals.php"
+    "app/Models/ChemicalSDS.php"
+    "app/Models/ChemicalSDSMonitoringInstance.php"
+    "app/Models/Device.php"
+    "app/Models/DeviceStatus.php"
+    "app/Models/Employee.php"
+    "app/Models/EntityAssetPmSchedule.php"
+    "app/Models/EntityChecklistItemSchedule.php"
+    "app/Models/Fixture.php"
+    "app/Models/GlobalPm.php"
+    "app/Models/GlobalPmHistory.php"
+    "app/Models/GlobalPMSchedule.php"
+    "app/Models/HazardousWasteTurnOverLogSheet.php"
+    "app/Models/Location.php"
+    "app/Models/MachineDevice.php"
+    "app/Models/Restroom.php"
+    "app/Models/RestroomMonitoring.php"
+    "app/Models/RestroomMonitoringInstance.php"
+    "app/Models/Schedule.php"
+    "app/Models/Status.php"
+    "app/Models/ThresholdProfile.php"
+    "app/Models/User.php"
+    "app/Models/UtilityTrash.php"
+    "app/Observers/ChecklistObserver.php"
+    "app/Providers/AppServiceProvider.php"
+    "app/Repositories/CheckItemsResultRepository.php"
+    "app/Repositories/ChecklistsRepository.php"
+    "app/Repositories/RhTempStatusRepository.php"
+    "app/Services/AssetsService.php"
+    "app/Services/BulkUpserter.php"
+    "app/Services/ChecklistsService.php"
+    "app/Services/DataTableService copy.php"
+    "app/Services/DataTableService.php"
+    "app/Services/GlobalPmHistoryService.php"
+    "app/Services/OverdueCalculatorService.php"
+    "app/Services/PeriodGeneratorService.php"
+    "app/Services/PmHistoryService.php"
+    "app/Services/PmScheduleCalculatorService.php"
+    "app/Services/RunningHoursService.php"
+    "app/Support/CacheKeys.php"
+    "app/Traits/HasUniqueCombinationRule.php"
+    "app/Traits/MassDeletesByIds.php"
+    "app/Traits/ParseRequestTrait.php"
+    "app/Traits/ValidateEmployeeExistenceTrait.php"
+    "resources/js/Components/BulkErrors.jsx"
+    "resources/js/Components/Calendar/Calendar.jsx"
+    "resources/js/Components/Calendar/calendarViews.js"
+    "resources/js/Components/CancellableActionButton.jsx"
+    "resources/js/Components/ChangeReviewModal.jsx"
+    "resources/js/Components/Chart/RunningHoursGauge.jsx"
+    "resources/js/Components/Chart/Speedometer.jsx"
+    "resources/js/Components/ChecklistItemsForm.jsx"
+    "resources/js/Components/ChemicalSDSMonitoringForm.jsx"
+    "resources/js/Components/DeleteModal.jsx"
+    "resources/js/Components/IndeterminateCheckbox.jsx"
+    "resources/js/Components/InputError.jsx"
+    "resources/js/Components/InputLabel.jsx"
+    "resources/js/Components/MaxItemDropdown.jsx"
+    "resources/js/Components/Modal.jsx"
+    "resources/js/Components/MultiSelectSearchableDropdown.jsx"
+    "resources/js/Components/NavBar.jsx"
+    "resources/js/Components/RestroomMonitoringForm.jsx"
+    "resources/js/Components/Steps.jsx"
+    "resources/js/Components/TableModal.jsx"
+    "resources/js/Components/TabulatorTable.jsx"
+    "resources/js/Components/tanStackTable/ArrayCell.jsx"
+    "resources/js/Components/tanStackTable/CheckBoxColumn.jsx"
+    "resources/js/Components/tanStackTable/ClickableCell.jsx"
+    "resources/js/Components/tanStackTable/DefaultEditableColumn.jsx"
+    "resources/js/Components/tanStackTable/DropDownCell.jsx"
+    "resources/js/Components/tanStackTable/JSONCell.jsx"
+    "resources/js/Components/tanStackTable/ReadOnlyColumn.jsx"
+    "resources/js/Components/tanStackTable/TableBody.jsx"
+    "resources/js/Components/tanStackTable/TableHeader.jsx"
+    "resources/js/Components/tanStackTable/TanstackTable.jsx"
+    "resources/js/Components/TimeLine.jsx"
+    "resources/js/Components/useHighlightMatch.jsx"
+    "resources/js/Constants/checkItemStatusConfig.jsx"
+    "resources/js/Hooks/useCurrentDate.js"
+    "resources/js/Hooks/useEditableTable.js"
+    "resources/js/Hooks/useFetch.js"
+    "resources/js/Hooks/useMutation.js"
+    "resources/js/Hooks/useSkipper.js"
+    "resources/js/Pages/AssetHealthBoardPage.jsx"
+    "resources/js/Pages/AssetList.jsx"
+    "resources/js/Pages/AssetPmHistoryPage.jsx"
+    "resources/js/Pages/AssetPmScheduleList.jsx"
+    "resources/js/Pages/Authentication/Login.jsx"
+    "resources/js/Pages/CheckItemList.jsx"
+    "resources/js/Pages/ChecklistApprovalConfigList.jsx"
+    "resources/js/Pages/ChecklistAssetList.jsx"
+    "resources/js/Pages/ChecklistInstanceList.jsx"
+    "resources/js/Pages/ChecklistItemList.jsx"
+    "resources/js/Pages/ChecklistList.jsx"
+    "resources/js/Pages/ChecklistUpsert.jsx"
+    "resources/js/Pages/ChemicalList.jsx"
+    "resources/js/Pages/ChemicalSDSMonitoringInstanceList.jsx"
+    "resources/js/Pages/ChemicalSDSUpsert.jsx"
+    "resources/js/Pages/ChemicalUpsert.jsx"
+    "resources/js/Pages/Dashboard.jsx"
+    "resources/js/Pages/GlobalPmList.jsx"
+    "resources/js/Pages/GlobalPmScheduleList.jsx"
+    "resources/js/Pages/HazardousWasteLogSheetList.jsx"
+    "resources/js/Pages/HazardousWasteUpsert.jsx"
+    "resources/js/Pages/LocationList.jsx"
+    "resources/js/Pages/LocationUpsert.jsx"
+    "resources/js/Pages/PerformChecklistPage.jsx"
+    "resources/js/Pages/PerformChemicalSDSPage.jsx"
+    "resources/js/Pages/PerformRestroomMonitoringPage.jsx"
+    "resources/js/Pages/PMScheduleCalendar.jsx"
+    "resources/js/Pages/RestroomMonitoringInstanceList.jsx"
+    "resources/js/Pages/SchedulesList.jsx"
+    "resources/js/Pages/SearchInput.jsx"
+    "resources/js/Pages/SpeedometerGroup.jsx"
+    "resources/js/Pages/UtilityTrash/UpdateChecklist.jsx"
+    "resources/js/Pages/UtilityTrash/UtilityTrashList.jsx"
+    "resources/js/Store/checklistStore.js"
+    "resources/js/Store/locationStore.js"
+    "resources/js/Utils/formatDateTime.js"
+    "resources/js/Utils/formatFriendlyDate.js"
+    "resources/js/Utils/formatISOTimestampToDate.js"
+    "resources/js/Utils/formatPastDateTimeLabel.js"
+    "resources/js/Utils/getObjectChanges.js"
+    "resources/js/Utils/updateNested.js"
+    "routes/api.php"
+    "routes/web.php"
+)
+
+
+PRUNE=( -type d \( -name node_modules -o -name vendor \) -prune -o )
+EXT_MATCH=( \( -name '*.php' -o -name '*.js' -o -name '*.jsx' -o -name '*.css' \) )
+
+resolve() {
+  local raw="$1"
+  local t="${raw//\\//}"          # backslashes -> forward slashes
+  local is_path=0
+  [[ "$t" == */* ]] && is_path=1  # also true for ./foo
+  t="${t#./}"                     # strip leading ./
+  t="${t%/}"                      # strip trailing /
+
+  if (( is_path )); then
+    if [[ -f "$t" ]]; then
+      printf '%s\0' "$t"
+    elif [[ -d "$t" ]]; then
+      find "$t" "${PRUNE[@]}" -type f "${EXT_MATCH[@]}" -print0
+    else
+      echo "WARN: path not found: $raw" >&2
+    fi
+  elif [[ -d "$t" && "$raw" == ./* ]]; then
+    find "$t" "${PRUNE[@]}" -type f "${EXT_MATCH[@]}" -print0
+  else
+    find . "${PRUNE[@]}" -type f \( \
+        -name "$t.php" -o -name "$t.js" -o -name "$t.jsx" -o -name "$t.css" \
+      \) -print0
+  fi
+}
+
+for t in "${targets[@]}"; do
+  resolve "$t"
+done |
+{
+  declare -A seen
+  count=0
+  while IFS= read -r -d '' file; do
+    file="${file#./}"
+    [[ -n "${seen[$file]}" ]] && continue   # dedupe (name + folder overlap)
+    seen[$file]=1
+    ((count++))
+    echo "## FILE: $file"
+    echo '```'
+    cat "$file"
+    echo '```'
+    echo
+  done
+  echo "Copied $count file(s)" >&2
+} | iconv -f UTF-8 -t UTF-16LE | clip.exe

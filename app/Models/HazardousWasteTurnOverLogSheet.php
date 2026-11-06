@@ -13,6 +13,7 @@ class HazardousWasteTurnOverLogSheet extends Model
     'reference_no',
     'requestor',
     'date',
+    'modified_by',
   ];
 
   public function requestor()

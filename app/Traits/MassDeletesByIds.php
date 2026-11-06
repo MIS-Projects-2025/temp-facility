@@ -6,6 +6,8 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Database\QueryException;
+use Illuminate\Support\Facades\DB;
 
 trait MassDeletesByIds
 {
@@ -28,19 +30,22 @@ trait MassDeletesByIds
     }
 
     try {
-      $deleted = $modelClass::whereIn('id', $ids)->delete();
-    } catch (\Exception $e) {
-      Log::info("Exception: " . json_encode($e));
-      Log::info("ddException: " . json_encode($e->getCode()));
-      Log::info("ddException: " . json_encode($e->getCode()));
-      Log::info("ddException: " . json_encode($e->getCode()));
-
+      $deleted = DB::transaction(function () use ($modelClass, $ids) {
+        $n = 0;
+        $modelClass::whereIn('id', $ids)->get()->each(function ($m) use (&$n) {
+          $m->delete();
+          $n++;
+        });
+        return $n;
+      });
+    } catch (QueryException $e) {
       if ($e->getCode() === '23000') {
         return response()->json([
           'status' => 'error',
-          'message' => 'Some items cannot be deleted because they are still used elsewhere. Please review these items before deleting them.',
+          'message' => 'Some items cannot be deleted because they are still used elsewhere.'
         ], 400);
       }
+      throw $e;
     }
 
     if ($cacheKey) {

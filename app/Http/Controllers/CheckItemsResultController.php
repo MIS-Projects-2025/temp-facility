@@ -68,7 +68,21 @@ class CheckItemsResultController extends Controller
         $start = Carbon::parse($item['period_start']);
         $end   = Carbon::parse($item['period_end']);
       } elseif ($schedule) {
-        [$start, $end] = OverdueCalculatorService::derivePeriod($checkedAt, $schedule->toArray());
+        try {
+          [$start, $end] = OverdueCalculatorService::derivePeriod($checkedAt, $schedule->toArray());
+        } catch (\InvalidArgumentException $e) {
+          Log::warning('Unsupported schedule for period', ['schedule' => $schedule->id]);
+          return [
+            'asset_id'          => $assetId,
+            'checked_by'        => $checkedBy,
+            'checklist_item_id' => $item['checklist_item_id'],
+            'item_status'       => trim($item['item_status']),
+            'remarks'           => $item['remarks'] ?? null,
+            'period_start'      => null,
+            'period_end'        => null,
+          ];
+        }
+
         if (!$start || !$end) {
           throw ValidationException::withMessages(['items' => 'No schedule window is open for one of the items right now.']);
         }
@@ -180,7 +194,6 @@ class CheckItemsResultController extends Controller
   {
     $rows = $request->all();
     $user = session('emp_data');
-    Log::info("rows: " . json_encode($rows));
 
     DB::transaction(function () use ($rows, $user) {
 
@@ -203,7 +216,6 @@ class CheckItemsResultController extends Controller
         }
 
         $updateData['modified_by'] = $user['emp_id'] ?? null;
-        Log::info("UPDATE DATA: " . json_encode($updateData));
 
         if (!empty($updateData)) {
           $model->update($updateData);

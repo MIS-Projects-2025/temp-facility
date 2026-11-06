@@ -12,8 +12,8 @@ class Checklist extends Model
     'name',
     'description',
     'instruction',
+    'form_control_no',
     'modified_by',
-
   ];
 
   protected $casts = [

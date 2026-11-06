@@ -34,8 +34,6 @@ class LocationController extends Controller
       ->paginate($perPage)
       ->withQueryString();
 
-    Log::info('locations: ', [$locations]);
-
     if ($request->wantsJson()) {
       return response()->json([
         'locations' => $locations,

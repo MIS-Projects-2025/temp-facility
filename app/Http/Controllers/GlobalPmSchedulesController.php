@@ -104,7 +104,7 @@ class GlobalPmSchedulesController extends Controller
         'global_pm_id' => [
           'required',
           'integer',
-          'exists:global_preventative_maintenances,id',
+          'exists:global_pm,id',
           Rule::unique((new GlobalPMSchedule())->getTable())->where(function ($query) use ($request) {
             return $query->where('global_pm_id', $request->global_pm_id);
           })->ignore($id),

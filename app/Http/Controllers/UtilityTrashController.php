@@ -53,9 +53,6 @@ class UtilityTrashController extends Controller
       ->paginate($perPage)
       ->withQueryString();
 
-    Log::info("utilityTrash: ", [$utilityTrash]);
-
-
     return Inertia::render('UtilityTrash/UtilityTrashList', [
       'utilityTrash' => $utilityTrash,
       'timeRange' => [
@@ -78,15 +75,9 @@ class UtilityTrashController extends Controller
   {
     $rows = $request->all();
     $user = session('emp_data');
-    Log::info($user);
     DB::transaction(function () use ($rows, $user) {
 
       foreach ($rows as $id => $fields) {
-        Log::info("ID: " . $id);
-
-        Log::info($rows);
-        Log::info($rows['id']);
-
         $model = UtilityTrash::find($rows['id']);
 
         if (!$model) {
@@ -95,7 +86,6 @@ class UtilityTrashController extends Controller
         }
 
         $updateData['verified_by'] = $user['emp_id'] ?? null;
-        Log::info($updateData);
 
         if (!empty($updateData)) {
           $model->update($updateData);
@@ -109,13 +99,6 @@ class UtilityTrashController extends Controller
   public function perform(Request $request)
   {
     $performDate = Carbon::parse($request->input('date'))->setTimezone('Asia/Manila');
-    Log::info($performDate);
-    Log::info($performDate);
-    Log::info($performDate);
-    Log::info($performDate);
-    Log::info($performDate);
-    Log::info($performDate);
-    Log::info($performDate);
     $user = session('emp_data');
 
     $updateData['date'] = $performDate;

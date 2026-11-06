@@ -18,6 +18,7 @@ class Schedule extends Model
     'interval_value',
     'days_of_week',
     'days_of_month',
+    'modified_by',
     'nth_weekday',
     'weekday_of_month',
     'months',

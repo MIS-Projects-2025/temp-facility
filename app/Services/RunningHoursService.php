@@ -30,4 +30,17 @@ class RunningHoursService
       });
     });
   }
+
+  public static function forChecklist(string $checklistSlug, string $itemSlug = 'running_hours'): array
+  {
+    $checklist = Checklist::where('slug', $checklistSlug)->first();
+    if (!$checklist) return ['name' => null, 'results' => collect()];
+
+    $raw = (new CheckItemsResultRepository())->getLastAndFirstSinceLastPmByChecklist($checklist->id);
+
+    return [
+      'name'    => $checklist->items()->where('slug', $itemSlug)->value('name'),
+      'results' => self::enrichWithRunningHours($raw, $itemSlug),
+    ];
+  }
 }

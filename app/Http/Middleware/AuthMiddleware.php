@@ -18,14 +18,6 @@ class AuthMiddleware
      */
     public function handle(Request $request, Closure $next)
     {
-        Log::info('AuthMiddleware triggered', [
-            'method' => $request->method(),
-            'url' => $request->fullUrl(),
-            'route_name' => optional($request->route())->getName(),
-            'route_action' => optional($request->route())->getActionName(),
-            'all_params' => $request->all(),
-        ]);
-
         $user = $request->attributes->get('auth_user');
 
         if (!$user) {

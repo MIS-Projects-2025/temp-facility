@@ -64,11 +64,6 @@ class BulkUpserter
         if (empty($fields)) continue;
         $isNew = $this->isNewRow($id);
 
-        Log::info(($isNew ? "Inserting" : "Updating") . " row: " . json_encode($fields));
-
-        // $modelInstance = $this->model->find($id);
-        // if (!$modelInstance) continue;
-
         $fieldsForValidation = $fields;
 
         foreach ($fieldsForValidation as $column => $value) {

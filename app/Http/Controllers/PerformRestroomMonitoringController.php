@@ -19,7 +19,6 @@ class PerformRestroomMonitoringController extends Controller
             RestroomMonitoringInstance::with(['creator:EMPLOYID,FIRSTNAME,LASTNAME'])->latest()->first();
 
         $selectedRestroomId = $request->input('restroom_id', $restrooms->first()?->id);
-        Log::info("selectedRestroomId: " . $selectedRestroomId);
         $selectedRestroom = Restroom::with('fixtures')->find($selectedRestroomId);
 
         return Inertia::render('PerformRestroomMonitoringPage', [

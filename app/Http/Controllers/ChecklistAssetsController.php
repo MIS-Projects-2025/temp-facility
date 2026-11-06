@@ -5,14 +5,10 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Illuminate\Validation\Rule;
-use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use App\Models\ChecklistAssets;
-use Exception;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
-use Illuminate\Http\Middleware\ValidatePathEncoding;
-use Illuminate\Support\Facades\Validator;
 use App\Models\Checklist;
 use App\Traits\MassDeletesByIds;
 use App\Services\BulkUpserter;
@@ -61,7 +57,6 @@ class ChecklistAssetsController extends Controller
       ]);
     }
 
-    Log::info('assets: ', [$checklistAssets]);
     return Inertia::render('ChecklistAssetList', [
       'assets' => $checklistAssets,
       'search' => $search,
@@ -116,11 +111,6 @@ class ChecklistAssetsController extends Controller
       self::rules($id, $request->asset_id),
       self::params()
     );
-  }
-
-  private function assetRules($id = null, $asset_id)
-  {
-    return self::rules($id, $asset_id);
   }
 
   public function massGenocide(Request $request)

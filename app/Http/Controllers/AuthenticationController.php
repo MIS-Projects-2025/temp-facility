@@ -19,6 +19,7 @@ class AuthenticationController extends Controller
             ->where('token', $token)
             ->first();
 
+        abort_if(!$currentUser, 401, 'Invalid token');
 
         $isAdmin = DB::table('admin')
             ->where('emp_id', $currentUser->emp_id)

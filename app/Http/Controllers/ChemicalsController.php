@@ -36,6 +36,7 @@ class ChemicalsController extends Controller
     return $request->validate([
       'name' => 'required|string',
       'description' => 'nullable|string',
+      Rule::unique('chemicals', 'name')->ignore($id)
     ]);
   }
 

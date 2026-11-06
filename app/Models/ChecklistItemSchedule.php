@@ -14,6 +14,7 @@ class ChecklistItemSchedule extends Model
   protected $fillable = [
     'schedule_id',
     'checklist_item_id',
+    'modified_by',
   ];
 
   protected $casts = [

@@ -11,21 +11,14 @@ class SessionMiddleware
 {
   public function handle(Request $request, Closure $next)
   {
-    Log::info('SessionMiddleware triggered', [
-      'path'   => $request->path(),
-      'url'   => $request->url(),
-      'method' => $request->method(),
-      'route'  => optional($request->route())->getActionName(),
-    ]);
-
     $cookieName = env('SSO_COOKIE_NAME', 'sso_token');
 
-        // 1️⃣ Get token sources (priority: query → cookie → session)
-        $tokenFromQuery   = $request->query('key');
-        $tokenFromCookie  = $request->cookie($cookieName);
-        $tokenFromSession = session('emp_data.token');
+    // 1️⃣ Get token sources (priority: query → cookie → session)
+    $tokenFromQuery   = $request->query('key');
+    $tokenFromCookie  = $request->cookie($cookieName);
+    $tokenFromSession = session('emp_data.token');
 
-$token = $tokenFromQuery ?? $tokenFromCookie ?? $tokenFromSession;
+    $token = $tokenFromQuery ?? $tokenFromCookie ?? $tokenFromSession;
     if (!$token) {
       return $this->redirectToLogin($request);
     }
@@ -34,10 +27,10 @@ $token = $tokenFromQuery ?? $tokenFromCookie ?? $tokenFromSession;
     if ($existing && $existing['token'] === $token) {
       $request->attributes->set('auth_user', (object) $existing);
 
-       if ($tokenFromQuery) {
-                $cookie = cookie($cookieName, $token, 60 * 24 * 7);
-                return redirect($request->url())->withCookie($cookie);
-            }
+      if ($tokenFromQuery) {
+        $cookie = cookie($cookieName, $token, 60 * 24 * 7);
+        return redirect($request->url())->withCookie($cookie);
+      }
       return $next($request);
     }
 
@@ -52,8 +45,8 @@ $token = $tokenFromQuery ?? $tokenFromCookie ?? $tokenFromSession;
 
     if (!$user) {
       session()->forget('emp_data');
-        $expiredCookie = cookie()->forget($cookieName);
-            return $this->redirectToLogin($request)->withCookie($expiredCookie);
+      $expiredCookie = cookie()->forget($cookieName);
+      return $this->redirectToLogin($request)->withCookie($expiredCookie);
     }
 
     session(['emp_data' => [
@@ -70,7 +63,7 @@ $token = $tokenFromQuery ?? $tokenFromCookie ?? $tokenFromSession;
 
     session()->save();
 
-      $cookie = cookie($cookieName, $user->token, 60 * 24 * 7);
+    $cookie = cookie($cookieName, $user->token, 60 * 24 * 7);
     $request->setUserResolver(fn() => (object) session('emp_data'));
 
     if ($tokenFromQuery) {

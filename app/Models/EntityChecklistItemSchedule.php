@@ -28,6 +28,6 @@ class EntityChecklistItemSchedule extends Model
 
   public function checklistItem()
   {
-    return $this->belongsTo(ChecklistItem::class, 'checklist_id');
+    return $this->belongsTo(ChecklistItem::class, 'checklist_item_id');
   }
 }

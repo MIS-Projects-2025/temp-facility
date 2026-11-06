@@ -37,8 +37,6 @@ class HazardousWasteTurnOverLogSheetController extends Controller
       ->paginate($perPage)
       ->withQueryString();
 
-    Log::info("utilityTrash: ", [$hazardousWaste]);
-
     return Inertia::render('HazardousWasteLogSheetList', [
       'hazardousWaste' => $hazardousWaste,
       'search' => $search,
@@ -114,19 +112,17 @@ class HazardousWasteTurnOverLogSheetController extends Controller
     $validated = $this->validatePart($request);
 
 
-    $part = HazardWaste::create($validated);
+    $hazardWaste = HazardWaste::create($validated);
 
     return response()->json([
-      'message' => 'Part added successfully',
-      'data' => $part,
+      'message' => 'Hazardous waste entry added successfully',
+      'data' => $hazardWaste,
     ]);
   }
 
   public function upsert($reference_no = null)
   {
-    Log::info("reference_no: ", [$reference_no]);
-    $hazardWasteToBeEdit = $reference_no ? HazardWaste::findOrFail($reference_no) : null;
-    Log::info("hazardWasteToBeEdit: ", [$hazardWasteToBeEdit]);
+    $hazardWasteToBeEdit = $reference_no ? HazardWaste::where('reference_no', $reference_no)->firstOrFail() : null;
 
     return Inertia::render('HazardousWasteUpsert', [
       'hazardWasteToBeEdit' => $hazardWasteToBeEdit,
@@ -135,11 +131,9 @@ class HazardousWasteTurnOverLogSheetController extends Controller
 
   public function update(Request $request, $reference_no)
   {
-    $hazardWaste = HazardWaste::findOrFail($reference_no);
-    Log::info("reference_no: ", [$reference_no]);
+    $hazardWaste = HazardWaste::where('reference_no', $reference_no)->firstOrFail();
 
     $validated = $this->validatePart($request, $reference_no);
-    Log::info("validated: ", [$validated]);
     $empId = session('emp_data.emp_id');
 
     if (!$empId) {
@@ -162,8 +156,9 @@ class HazardousWasteTurnOverLogSheetController extends Controller
 
   public function destroy($reference_no)
   {
-    $part = HazardWaste::findOrFail($reference_no);
-    $part->delete();
+    $hazardWaste = HazardWaste::where('reference_no', $reference_no)->firstOrFail();
+
+    $hazardWaste->delete();
 
     return response()->json([
       'success' => true,

@@ -24,22 +24,15 @@ class PmScheduleCalculatorService
 
     // "Every Nth of the month" — days_of_month can have multiple values e.g. [10, 20]
     if ($unit === 'month' && !empty($schedule->days_of_month)) {
-      $days = is_array($schedule->days_of_month)
-        ? $schedule->days_of_month
-        : json_decode($schedule->days_of_month, true);
+      $days = is_array($schedule->days_of_month) ? $schedule->days_of_month : json_decode($schedule->days_of_month, true);
+      sort($days);
 
-      sort($days); // ascending so we find the earliest next occurrence first
-
-      // Check if any target day still falls later in the current month
       foreach ($days as $targetDay) {
-        $candidate = $base->copy()->day((int) $targetDay);
-        if ($candidate->gte($base) && $candidate->month === $base->month) {
-          return $candidate;
-        }
+        $candidate = $base->copy()->day(min((int) $targetDay, $base->daysInMonth));
+        if ($candidate->gte($base)) return $candidate;
       }
-
-      // No hit this month — move forward by interval and use the first day in the list
-      return $base->copy()->addMonths($value)->startOfMonth()->day((int) $days[0]);
+      $next = $base->copy()->startOfMonth()->addMonthsNoOverflow($value);
+      return $next->day(min((int) $days[0], $next->daysInMonth));
     }
 
     // "First Monday of every month" — nth_weekday + weekday_of_month
@@ -50,7 +43,7 @@ class PmScheduleCalculatorService
       $candidate = self::nthWeekdayOfMonth($base->copy()->startOfMonth(), $nth, $weekday);
 
       if ($candidate->lte($from)) {
-        $candidate = self::nthWeekdayOfMonth($base->copy()->addMonths($value)->startOfMonth(), $nth, $weekday);
+        $candidate = self::nthWeekdayOfMonth($base->copy()->startOfMonth()->addMonthsNoOverflow($value), $nth, $weekday);
       }
 
       return $candidate;
@@ -63,7 +56,7 @@ class PmScheduleCalculatorService
         : json_decode($schedule->days_of_week, true);
       $targetWeekday = (int) $days[0]; // 0=Sun...6=Sat (JS convention assumed)
 
-      return $base->copy()->next($targetWeekday);
+      return $from->copy()->addWeeks(max($value - 1, 0))->next($targetWeekday);
     }
 
     // Simple intervals: day, week, month, year

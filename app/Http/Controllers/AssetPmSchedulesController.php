@@ -91,11 +91,6 @@ class AssetPmSchedulesController extends Controller
     );
   }
 
-  private function assetRules($id = null, $asset_id)
-  {
-    return self::rules($id, $asset_id);
-  }
-
   public function massGenocide(Request $request)
   {
     return $this->massDeleteByIds(
@@ -112,9 +107,10 @@ class AssetPmSchedulesController extends Controller
     $columnRules = [
       'asset_id' => fn($id) => [
         'required',
-        'int',
-        Rule::unique('assets', 'code')
-          ->ignore(is_numeric($id) ? $id : null),
+        'integer',
+        Rule::exists('assets', 'id'),
+        Rule::unique('entity_asset_pm_schedules', 'asset_id')->ignore(is_numeric($id) ? $id : null),
+        // (unique matches PmHistoryService, which assumes one schedule per asset; drop if wrong) // check
       ],
       'schedule_id' => fn($id) => [
         'required',

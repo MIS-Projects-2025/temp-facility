@@ -25,7 +25,6 @@ class ChecklistItemsController extends Controller
   {
     $allChecklists = Checklist::all();
     $selectedChecklistId = $request->input('checklist_id', $allChecklists->first()?->id);
-    Log::info("selectedChecklistId: " . $selectedChecklistId);
     $selectedChecklist = Checklist::with([
       'checklistItems.item',
       'checklistItems.schedule',
@@ -85,7 +84,6 @@ class ChecklistItemsController extends Controller
 
   public function massGenocide(Request $request)
   {
-    Log::info("Fjlaksjdfklsdajflsdjlsjfljdflsdjfldjfldj");
 
     return $this->massDeleteByIds(
       $request,
@@ -158,37 +156,41 @@ class ChecklistItemsController extends Controller
       ->where('ci.checklist_id', $checklistId)
       ->get();
 
-    Log::info("items" . json_encode($items));
 
-    $results = $items->flatMap(function ($item) use ($assetId) {
-      $schedule  = $item->schedule;
-      $lookback  = now('Asia/Manila')->subDays(90);
-      $anchor    = $lookback;
+    $lookback = now('Asia/Manila')->subDays(90);
 
-      Log::info("anchor" . json_encode($anchor));
-      $periods = PeriodGeneratorService::generate($anchor, $schedule->toArray());
-      Log::info("periods" . json_encode($periods));
+    $submitted = DB::table('checklist_item_results')
+      ->where('asset_id', $assetId)
+      ->whereIn('checklist_item_id', $items->pluck('id'))
+      ->whereNotNull('period_start')
+      ->get(['checklist_item_id', 'period_start'])
+      ->mapWithKeys(fn($r) => [
+        $r->checklist_item_id . '|' . Carbon::parse($r->period_start, 'UTC')->timestamp => true,
+      ]);
+
+    $results = $items->flatMap(function ($item) use ($lookback, $submitted) {
+      $schedule = $item->entitySchedule?->schedule;   // already eager-loaded, no N+1
+      if (!$schedule) return [];
+
+      try {
+        $periods = PeriodGeneratorService::generate($lookback, $schedule->toArray());
+      } catch (\InvalidArgumentException $e) {
+        return [];                                    // hour / multi-year: not period-trackable
+      }
+
       return collect($periods)
-        ->filter(fn($period) => $period[1]->isBefore(now()))
-        ->sortByDesc(fn($period) => $period[0])
+        ->filter(fn($p) => $p[1]->isPast())
+        ->reject(fn($p) => $submitted->has($item->id . '|' . $p[0]->timestamp))
+        ->sortByDesc(fn($p) => $p[0]->timestamp)
         ->take(5)
-        ->map(fn($period) => (object) [
-          'item_id'       => $item->id,
-          'name'          => $item->name,
-          'input_type'    => $item->input_type,
-          'allowed_values' => $item->allowed_values,
-          'verified_by'   => $item->verified_by,
-          'created_by'    => $item->created_by,
-          'checked_at'    => $item->checked_at,
-          'criteria'      => $item->criteria,
-          'schedule_name' => $item->schedule_name,
-          'is_no_schedule' => is_null($item->schedule_id),
-          'period_start'  => $period[0],
-          'period_end'    => $period[1],
+        ->map(fn($p) => (object) [
+          // keep your existing field mapping here, with:
+          'is_no_schedule' => false,
+          'period_start'   => $p[0],
+          'period_end'     => $p[1],
         ]);
     });
 
-    Log::info("results", $results->toArray());
 
     $results = self::resolveEmployees($results);
     $results = $results->groupBy('item_id');
@@ -287,28 +289,26 @@ class ChecklistItemsController extends Controller
     }, $rows);
 
     $result = DB::transaction(function () use ($user, $rows, $columnRules) {
-      $bulkUpdater = new BulkUpserter(new ChecklistItem(), $columnRules, [], []);
-      $result = $bulkUpdater->update($rows ?? null);
+      $result = (new BulkUpserter(new ChecklistItem(), $columnRules, [], []))->update($rows);
+      if (!empty($result['errors'])) return $result;
 
-      $checklistItems = array_merge(
-        $result['updated'] ?? [],
-        $result['inserted'] ?? [],
-      );
+      $rowsById = collect($rows)->keyBy(fn($r) => (string) $r['id']);
+      $touched  = [];
+      foreach ($result['updated'] as $m)                     $touched[] = [$m, $rowsById[(string) $m->id] ?? null];
+      foreach ($result['insertedByRowId'] as $rowId => $m)   $touched[] = [$m, $rowsById[(string) $rowId] ?? null];
 
-      $rowsById = collect($rows)->keyBy('id');
-      foreach ($checklistItems as $checklistItem) {
-        $scheduleId = $rowsById[$checklistItem->id]['schedule_id'] ?? null;
-        if (!$scheduleId) continue;
+      foreach ($touched as [$item, $row]) {
+        if (!$row || !array_key_exists('schedule_id', $row)) continue;
 
-        $checklistItem->entitySchedule()->updateOrCreate(
-          [],
-          [
-            'schedule_id' => $scheduleId,
+        if ($row['schedule_id']) {
+          $item->entitySchedule()->updateOrCreate([], [
+            'schedule_id' => $row['schedule_id'],
             'modified_by' => $user['emp_id'] ?? null,
-          ]
-        );
+          ]);
+        } else {
+          $item->entitySchedule()->delete();
+        }
       }
-
       return $result;
     });
 

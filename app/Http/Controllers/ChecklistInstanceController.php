@@ -67,41 +67,27 @@ class ChecklistInstanceController extends Controller
     $instanceIds = $instances->pluck('id');
     $userId = session('emp_data')['emp_id'] ?? null;
 
-    // User's pending approver rows for this page
-    $userApproverRows = DB::table('checklist_approvers')
-      ->where('instance_type', 'checklist')
-      ->where('user_id', $userId)
-      ->where('status', 'pending')
-      ->whereIn('instance_id', $instanceIds)
-      ->get()
-      ->keyBy('instance_id');
+    $approverRows = DB::table('checklist_approvers')
+      ->where('instance_type', 'checklist')->whereIn('instance_id', $instanceIds)
+      ->get()->groupBy('instance_id');
 
-    // All approved levels per instance — { instance_id => [1, 2, ...] }
-    $approvedLevels = DB::table('checklist_approvers')
-      ->where('instance_type', 'checklist')
-      ->where('status', 'approved')
-      ->whereIn('instance_id', $instanceIds)
-      ->get()
-      ->groupBy('instance_id')
-      ->map(fn($rows) => $rows->pluck('level')->all());
+    $instances->through(function ($instance) use ($approverRows, $userId) {
+      $rows     = $approverRows->get($instance->id, collect());
+      $mine     = $rows->first(fn($r) => (string) $r->user_id === (string) $userId && $r->status === 'pending');
+      $approved = $rows->where('status', 'approved')->pluck('level')->map(fn($l) => (int) $l)->unique();
 
-    $instances->through(function ($instance) use ($userApproverRows, $approvedLevels) {
-      $approverRow = $userApproverRows->get($instance->id);
-      $approved    = $approvedLevels->get($instance->id, []);
+      $instance->is_approver     = (bool) $mine;
+      $instance->can_approve_now = false;
+      $instance->deny_reason     = null;
 
-      $instance->is_approver     = !is_null($approverRow);
-      $instance->can_approve_now = $instance->is_approver
-        && !in_array($approverRow->level, $approved)
-        && (
-          $approverRow->level === 1 ||
-          in_array($approverRow->level - 1, $approved)
-        );
+      if ($mine) {
+        $level   = (int) $mine->level;
+        $blocked = $rows->pluck('level')->map(fn($l) => (int) $l)->unique()
+          ->filter(fn($l) => $l < $level)->diff($approved);
 
-      $instance->deny_reason = null;
-      if ($instance->is_approver && !$instance->can_approve_now) {
-        $instance->deny_reason = in_array($approverRow->level, $approved)
-          ? 'level_already_approved'
-          : 'previous_level_pending';
+        if ($approved->contains($level))  $instance->deny_reason = 'level_already_approved';
+        elseif ($blocked->isNotEmpty())   $instance->deny_reason = 'previous_level_pending';
+        else                              $instance->can_approve_now = true;
       }
       return $instance;
     });
@@ -124,82 +110,68 @@ class ChecklistInstanceController extends Controller
 
   public function verify(Request $request)
   {
-    $ids = $request->all();
-    $user = session('emp_data');
-    $userId = $user['emp_id'] ?? null;
+    $ids    = array_values(array_filter($request->all(), 'is_numeric'));
+    $userId = session('emp_data.emp_id');
 
     if (!$userId || empty($ids)) {
-      return response()->json([
-        'message' => 'Missing user info or no instances selected.'
-      ], 400);
+      return response()->json(['status' => 'error', 'message' => 'Missing user info or no instances selected.'], 400);
     }
 
-    // Update all instances at once
     $updated = ChecklistInstance::whereIn('id', $ids)
-      ->update([
-        'verified_at' => now(),
-        'verified_by' => $userId,
-      ]);
+      ->where('submission_type', 'punctual')
+      ->whereNull('verified_at')
+      ->update(['verified_at' => now(), 'verified_by' => $userId]);
 
-    $hasLate = ChecklistInstance::whereIn('id', $ids)
-      ->where('submission_type', 'late')
-      ->exists();
-
-    if ($hasLate) {
-      return response()->json(['status' => 'error', 'message' => 'Late submissions must go through the approval process.'], 403);
+    if ($updated === 0) {
+      return response()->json([
+        'status' => 'error',
+        'message' => 'Nothing verified. Late submissions must go through approval.'
+      ], 422);
     }
 
+    $skipped = count($ids) - $updated;
     return response()->json([
       'status' => 'success',
-      'message' => "$updated instance(s) verified successfully."
+      'message' => "$updated verified" . ($skipped ? ", $skipped skipped (late or already verified)." : '.')
     ]);
   }
 
   public function approve(Request $request, $instanceId)
   {
-    $userId = session('emp_data')['emp_id'];
+    $userId = session('emp_data.emp_id');
 
-    $approver = DB::table('checklist_approvers')
-      ->where('instance_id', $instanceId)
-      ->where('user_id', $userId)
-      ->where('status', 'pending')
-      ->first();
+    return DB::transaction(function () use ($request, $instanceId, $userId) {
+      $rows = DB::table('checklist_approvers')
+        ->where('instance_type', 'checklist')->where('instance_id', $instanceId)
+        ->lockForUpdate()->get();
 
-    // Is this user even an approver for this instance?
-    if (!$approver) {
-      return response()->json(['error' => 'Not authorized'], 403);
-    }
-
-    // Is the previous level done?
-    if ($approver->level > 1) {
-      $previousLevelApproved = DB::table('checklist_approvers')
-        ->where('instance_id', $instanceId)
-        ->where('level', $approver->level - 1)
-        ->where('status', 'approved')
-        ->exists();
-
-      if (!$previousLevelApproved) {
-        return response()->json(['error' => 'Previous level not yet approved'], 403);
+      $mine = $rows->first(fn($r) => (string) $r->user_id === (string) $userId && $r->status === 'pending');
+      if (!$mine) {
+        return response()->json(['status' => 'error', 'message' => 'Not authorized'], 403);
       }
-    }
 
-    // Stamp the decision
-    DB::table('checklist_approvers')
-      ->where('id', $approver->id)
-      ->update([
-        'status'     => 'approved',
+      $level    = (int) $mine->level;
+      $levels   = $rows->pluck('level')->map(fn($l) => (int) $l)->unique();
+      $approved = $rows->where('status', 'approved')->pluck('level')->map(fn($l) => (int) $l)->unique();
+
+      if ($approved->contains($level)) {
+        return response()->json(['status' => 'error', 'message' => 'This level is already approved'], 409);
+      }
+      if ($levels->filter(fn($l) => $l < $level)->diff($approved)->isNotEmpty()) {
+        return response()->json(['status' => 'error', 'message' => 'Previous level not yet approved'], 403);
+      }
+
+      DB::table('checklist_approvers')->where('id', $mine->id)->update([
+        'status' => 'approved',
         'decided_at' => now(),
-        'remarks'    => $request->input('remarks'),
+        'remarks' => $request->input('remarks'),
       ]);
 
-    // If level 3, stamp the instance
-    if ($approver->level === 3) {
-      ChecklistInstance::where('id', $instanceId)->update([
-        'approved_by' => $userId,
-        'approved_at' => now(),
-      ]);
-    }
+      if ($levels->diff($approved->merge([$level]))->isEmpty()) {   // every level has an approval
+        ChecklistInstance::where('id', $instanceId)->update(['approved_by' => $userId, 'approved_at' => now()]);
+      }
 
-    return response()->json(['status' => 'ok']);
+      return response()->json(['status' => 'ok']);
+    });
   }
 }
