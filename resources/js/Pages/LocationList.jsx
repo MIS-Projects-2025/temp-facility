@@ -10,6 +10,7 @@ import { router, usePage } from "@inertiajs/react";
 import React, { useEffect, useRef, useState } from "react";
 import toast from "react-hot-toast";
 import { FaPlus, FaSave } from "react-icons/fa";
+import { MdOutlineDelete } from "react-icons/md";
 import SearchInput from "./SearchInput";
 
 function LocationList() {
@@ -125,7 +126,7 @@ function LocationList() {
 		getChanges,
 		changes,
 	} = useEditableTable(serverLocations.data || [], columns, {
-		isMultipleSelection: false,
+		isMultipleSelection: true,
 	});
 
 	const saveChangeIDModal = "save_change_modal_id";
@@ -201,6 +202,14 @@ function LocationList() {
 					onClick={handleResetChanges}
 				>
 					Reset
+				</button>
+				<button
+					type="button"
+					className="btn btn-error btn-ghost btn-square"
+					disabled={Object.keys(table.getState().rowSelection).length === 0}
+					onClick={() => deleteModalRef.current?.open()}
+				>
+					<MdOutlineDelete className="w-full h-full" />
 				</button>
 			</div>
 

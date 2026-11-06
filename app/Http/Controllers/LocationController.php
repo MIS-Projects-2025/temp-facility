@@ -77,6 +77,7 @@ class LocationController extends Controller
     $user_id = session('emp_data')['emp_id'] ?? null;
 
     $entry = Location::create([
+      'created_by' => $user_id,
       ...$validated,
       'modified_by' => $user_id,
 
@@ -136,6 +137,11 @@ class LocationController extends Controller
 
     $rows = array_map(function ($row) use ($user) {
       $row['modified_by'] = $user['emp_id'] ?? null;
+
+      $isNew = !isset($row['id']) || str_starts_with((string) $row['id'], 'new-');
+      if ($isNew) {
+        $row['created_by'] = $user['emp_id'] ?? null;
+      }
       return $row;
     }, $rows);
 
@@ -170,6 +176,11 @@ class LocationController extends Controller
         'success' => true,
         'message' => 'Location deleted successfully',
       ]);
+    } catch (\DomainException $e) {
+      return response()->json([
+        'status' => 'error',
+        'message' => $e->getMessage(),
+      ], 409);
     } catch (ModelNotFoundException $e) {
       return response()->json([
         'status' => 'error',

@@ -52,6 +52,7 @@ class ChecklistApprovalConfigController extends Controller
         'string',
         Rule::exists('masterlist.employee_masterlist', 'EMPLOYID'),
         Rule::unique('checklist_approval_config', 'user_id')
+          ->ignore(is_numeric($id) ? $id : null),
       ],
       'level' => fn($id) => [
         'required',

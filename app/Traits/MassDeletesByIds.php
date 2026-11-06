@@ -2,10 +2,10 @@
 
 namespace App\Traits;
 
+use DomainException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 
@@ -16,12 +16,17 @@ trait MassDeletesByIds
     string $modelClass,
     ?string $cacheKey = null
   ) {
-    $ids = $request->input('ids');
+    // unsaved grid rows ("new-1") have no DB id
+    $ids = collect($request->input('ids'))
+      ->filter(fn($id) => is_numeric($id))
+      ->unique()
+      ->values()
+      ->all();
 
-    if (!is_array($ids) || empty($ids)) {
+    if (empty($ids)) {
       return response()->json([
         'status' => 'error',
-        'message' => 'No IDs provided.',
+        'message' => 'No saved rows selected.',
       ], 422);
     }
 
@@ -38,6 +43,12 @@ trait MassDeletesByIds
         });
         return $n;
       });
+    } catch (DomainException $e) {
+      // model-level "still in use" guard
+      return response()->json([
+        'status' => 'error',
+        'message' => $e->getMessage(),
+      ], 409);
     } catch (QueryException $e) {
       if ($e->getCode() === '23000') {
         return response()->json([

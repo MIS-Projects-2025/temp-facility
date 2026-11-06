@@ -286,6 +286,9 @@ Route::middleware([ApiAuthMiddleware::class])
         });
 
         Route::prefix('global-pm')->name('global-pm.')->group(function () {
+            Route::delete('/bulk-delete', [GlobalPmController::class, 'massGenocide'])
+                ->middleware(ApiPermissionMiddleware::class)
+                ->name('massGenocide');
             Route::patch('/bulk-update', [GlobalPmController::class, 'bulkUpdate'])
                 ->middleware(ApiPermissionMiddleware::class)
                 ->name('bulkUpdate');

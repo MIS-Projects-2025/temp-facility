@@ -55,12 +55,13 @@ export default function NavLinks({ isCollapse }) {
 				isIconOnly={isCollapse}
 			/>
 
-			<SidebarLink
+			// deprecated, it has it's own app. The business rules is now stale here.
+			{/* <SidebarLink
 				href={route("rh-temp-dashboard")}
 				label="RH Temp Dashboard"
 				icon={<LuLayoutDashboard className="w-full h-full" />}
 				isIconOnly={isCollapse}
-			/>
+			/> */}
 
 			<SidebarLink
 				href={route("asset-health")}

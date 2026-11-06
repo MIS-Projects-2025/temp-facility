@@ -97,6 +97,13 @@ export function useEditableTable(initialData = [], columns, options = {}) {
 			}),
 	});
 
+	// drop stale selection whenever the server data changes (after delete, page change, search)
+	useEffect(() => {
+		if (Object.keys(table.getState().rowSelection).length > 0) {
+			table.resetRowSelection(true);
+		}
+	}, [initialData, table]);
+
 	const handleAddNewRow = useCallback(
 		(overrides = {}) => {
 			const newId = `new-${table.getRowCount() + 1}`;

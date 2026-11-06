@@ -1,5 +1,6 @@
 import BulkErrors from "@/Components/BulkErrors";
 import ChangeReviewModal from "@/Components/ChangeReviewModal";
+import DeleteModal from "@/Components/DeleteModal";
 import Pagination from "@/Components/Pagination";
 import ReadOnlyColumns from "@/Components/tanStackTable/ReadOnlyColumn";
 import TanstackTable from "@/Components/tanStackTable/TanstackTable";
@@ -9,6 +10,7 @@ import { router, usePage } from "@inertiajs/react";
 import React, { useEffect, useRef, useState } from "react";
 import toast from "react-hot-toast";
 import { FaPlus, FaSave } from "react-icons/fa";
+import { MdOutlineDelete } from "react-icons/md";
 import SearchInput from "./SearchInput";
 
 const saveChangeIDModal = "save_change_global_pm_modal_id";
@@ -96,8 +98,26 @@ const GlobalPmList = () => {
 		getChanges,
 		changes,
 	} = useEditableTable(serverGlobalPms.data || [], columns, {
-		isMultipleSelection: false,
+		isMultipleSelection: true,
 	});
+
+	const deleteModalRef = useRef(null);
+
+	const handleDelete = async () => {
+		try {
+			await mutate(route("api.global-pm.massGenocide"), {
+				body: { ids: Object.keys(table.getState().rowSelection) },
+				method: "DELETE",
+			});
+
+			refresh();
+			deleteModalRef.current?.close();
+			toast.success("Global PMs deleted successfully!");
+		} catch (error) {
+			toast.error(error?.message);
+			console.error(error);
+		}
+	};
 
 	const refresh = () => {
 		router.reload();
@@ -173,6 +193,15 @@ const GlobalPmList = () => {
 						Reset
 					</button>
 
+					<button
+						type="button"
+						className="btn btn-error btn-ghost btn-square"
+						disabled={Object.keys(table.getState().rowSelection).length === 0}
+						onClick={() => deleteModalRef.current?.open()}
+					>
+						<MdOutlineDelete className="w-full h-full" />
+					</button>
+
 					<SearchInput
 						placeholder="search by name"
 						initialSearchInput={searchInput}
@@ -195,6 +224,16 @@ const GlobalPmList = () => {
 				/>
 
 				<TanstackTable table={table} />
+
+				<DeleteModal
+					ref={deleteModalRef}
+					id="globalPmDeleteModal"
+					message="Are you sure you want to delete these global PMs?"
+					errorMessage={mutateErrorMessage}
+					isLoading={isMutateLoading}
+					onDelete={handleDelete}
+					onClose={() => deleteModalRef.current?.close()}
+				/>
 
 				<ChangeReviewModal
 					modalID={saveChangeIDModal}

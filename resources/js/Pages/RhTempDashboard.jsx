@@ -328,6 +328,10 @@ const statusColors = {
 };
 
 // --- Dashboard --------------------------------------------------------
+// deprecated, it has it's own app. The business rules is now stale here.
+// remove from navigation.jsx as well
+// but still accessible through direct link for now
+// lazy to remove it from the route file, so just leave it there for now
 export default function RhTempDashboard({
 	devices: initialDevices,
 	thresholds,

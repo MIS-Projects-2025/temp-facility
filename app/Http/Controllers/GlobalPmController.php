@@ -7,9 +7,12 @@ use Inertia\Inertia;
 use Illuminate\Validation\Rule;
 use App\Models\GlobalPm;
 use App\Services\BulkUpserter;
+use App\Traits\MassDeletesByIds;
 
 class GlobalPmController extends Controller
 {
+  use MassDeletesByIds;
+
   public function index(Request $request)
   {
     $search = $request->input('search', '');
@@ -39,6 +42,11 @@ class GlobalPmController extends Controller
       'perPage' => $perPage,
       'totalEntries' => $totalEntries,
     ]);
+  }
+
+  public function massGenocide(Request $request)
+  {
+    return $this->massDeleteByIds($request, GlobalPm::class);
   }
 
   public function bulkUpdate(Request $request)

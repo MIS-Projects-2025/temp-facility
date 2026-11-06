@@ -14,6 +14,7 @@ import { router, usePage } from "@inertiajs/react";
 import React, { useCallback, useRef, useState } from "react";
 import toast from "react-hot-toast";
 import { FaCaretDown, FaPlus, FaSave } from "react-icons/fa";
+import { MdOutlineDelete } from "react-icons/md";
 
 const perPageF3RawPackage = 30;
 const checkItemListModalID = "checklist-item-modal";
@@ -169,7 +170,7 @@ const ChecklistItemList = () => {
 		getChanges,
 		changes,
 	} = useEditableTable(checklistItems || [], columns, {
-		isMultipleSelection: false,
+		isMultipleSelection: true,
 		createEmptyRow: () => ({
 			checklist_id: selectedChecklist?.id,
 			input_type: "text",
@@ -315,6 +316,14 @@ const ChecklistItemList = () => {
 						onClick={handleResetChanges}
 					>
 						Reset
+					</button>
+					<button
+						type="button"
+						className="btn btn-error btn-ghost btn-square"
+						disabled={Object.keys(table.getState().rowSelection).length === 0}
+						onClick={() => deleteModalRef.current?.open()}
+					>
+						<MdOutlineDelete className="w-full h-full" />
 					</button>
 				</div>
 
