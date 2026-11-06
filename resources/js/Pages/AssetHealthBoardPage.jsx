@@ -11,20 +11,23 @@ const checklistModalID = "asset-health-checklist-modal";
 const LatestResultsCards = ({ latestResults }) => {
 	return (
 		<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 overflow-y-auto">
-			{Object.entries(latestResults).map(([assetName, results]) => {
+			{Object.entries(latestResults).map(([assetKey, results]) => {
+				const assetName = results[0]?.asset_name ?? assetKey;
 				const location = results[0]?.asset_location;
 
 				return (
 					<div
-						key={assetName}
+						key={assetKey}
 						className="card shadow border border-base-content/20 flex flex-col gap-2"
 					>
 						<h2 className="font-bold text-lg bg-base-100 p-2">
 							{assetName}
-							<span className="opacity-50 font-light">@{location}</span>
+							{location && (
+								<span className="opacity-50 font-light">@{location}</span>
+							)}
 						</h2>
 						<div className="flex flex-col gap-1 p-2">
-							{results.map((result) => {
+							{results.map((result, idx) => {
 								const itemName = result?.item_name;
 								const rawStatus = result?.item_status;
 								const config = STATUS_CONFIG[rawStatus?.toLowerCase()];
@@ -34,7 +37,7 @@ const LatestResultsCards = ({ latestResults }) => {
 
 								return (
 									<div
-										key={itemName}
+										key={`${itemName}-${idx}`}
 										className={`flex justify-between items-center px-2 py-1 ${config?.bgClass ?? "bg-gray-100/5"}`}
 									>
 										<div className="text-sm">

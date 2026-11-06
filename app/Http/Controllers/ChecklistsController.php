@@ -81,15 +81,14 @@ class ChecklistsController extends Controller
           'required',
           'string',
           'max:255',
-          Rule::unique('checklists')->where(function ($query) use ($request) {
-            return $query->where('name', $request->name);
-          })->ignore($id),
+          Rule::unique('checklists', 'name')->ignore($id),
         ],
-        'description'      => 'nullable|string',
+        'description'     => 'nullable|string',
+        'instruction'     => 'nullable|string',
+        'form_control_no' => 'nullable|string|max:255',
       ],
       [
-        'name.unique' =>
-        'The name provided already exists.',
+        'name.unique' => 'The name provided already exists.',
       ],
     );
   }

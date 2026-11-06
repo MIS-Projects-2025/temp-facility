@@ -151,6 +151,8 @@ class LocationController extends Controller
       ], 422);
     }
 
+    Cache::forget(CacheKeys::locationsAll());
+
     return response()->json([
       'status' => 'ok',
       'message' => 'Updated successfully',

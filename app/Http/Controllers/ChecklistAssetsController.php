@@ -28,7 +28,7 @@ class ChecklistAssetsController extends Controller
     $totalEntries = ChecklistAssets::count();
 
     if (!$checklistId) {
-      $checklistId = Checklist::first()->id;
+      $checklistId = Checklist::first()?->id;
     }
 
     $checklistAssetsQuery = ChecklistAssets::query()

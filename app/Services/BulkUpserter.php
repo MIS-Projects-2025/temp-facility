@@ -5,8 +5,6 @@ namespace App\Services;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Facades\Log;
-use Illuminate\Validation\Rule;
 
 class BulkUpserter
 {
@@ -16,13 +14,6 @@ class BulkUpserter
   protected array $columnHandlers = [];
   protected array $attributeNames = [];
 
-  /**
-   * @param Model $model Eloquent model
-   * @param array $columnRules Laravel validation rules per column
-   * @param array $dateColumns Columns to normalize as dates
-   * @param array $columnHandlers Optional custom normalization per column
-   *        Format: 'column_name' => fn($value) => $normalizedValue|null
-   */
   public function __construct(
     Model $model,
     array $columnRules = [],
@@ -43,21 +34,17 @@ class BulkUpserter
     return is_string($id) && str_starts_with($id, 'new-');
   }
 
-  /**
-   * Perform bulk update
-   *
-   * @param array $rows Array of rowId => fields
-   * @param int|null $modifiedBy Optional user id for tracking
-   * @return array Result summary with updated ids and errors
-   */
   public function update(array $rows): array
   {
     $errors = [];
     $errorMessages = [];
     $inserted = [];
+    $insertedByRowId = [];
     $updated = [];
 
-    DB::transaction(function () use ($rows, &$errors, &$updated, &$inserted) {
+    // all-or-nothing: if any row fails validation, nothing is written
+    DB::beginTransaction();
+    try {
       foreach ($rows as $row) {
         $id = $row['id'] ?? null;
         $fields = $row;
@@ -92,16 +79,17 @@ class BulkUpserter
           $this->attributeNames
         );
 
-        $normalizedData = $this->normalizeFields($fields);
-
         if ($validator->fails()) {
           $errors[$id] = $validator->errors()->messages();
           continue;
         }
 
+        $normalizedData = $this->normalizeFields($fields);
+
         if ($isNew) {
           $modelInstance = $this->model->create($normalizedData);
           $inserted[] = $modelInstance;
+          $insertedByRowId[(string) $id] = $modelInstance;
         } else {
           $modelInstance = $this->model->find($id);
           if (!$modelInstance) continue;
@@ -109,7 +97,19 @@ class BulkUpserter
           $updated[] = $modelInstance;
         }
       }
-    });
+
+      if (!empty($errors)) {
+        DB::rollBack();
+        $inserted = [];
+        $insertedByRowId = [];
+        $updated = [];
+      } else {
+        DB::commit();
+      }
+    } catch (\Throwable $e) {
+      DB::rollBack();
+      throw $e;
+    }
 
     if (!empty($errors)) {
       $maxErrorRows = 20;
@@ -117,9 +117,7 @@ class BulkUpserter
       foreach ($errors as $rowId => $columns) {
         foreach ($columns as $column => $messages) {
           foreach ($messages as $msg) {
-
-            $cleanMsg = str_replace($column, $column, $msg);
-            $errorMessages[] = "Row " . ($rowId ?? '?') . ": {$cleanMsg}";
+            $errorMessages[] = "Row " . ($rowId ?? '?') . ": {$msg}";
 
             if (count($errorMessages) >= $maxErrorRows) {
               break 3;
@@ -132,6 +130,7 @@ class BulkUpserter
     return [
       'updated' => $updated,
       'inserted' => $inserted,
+      'insertedByRowId' => $insertedByRowId,
       'errors' => $errors,
       'errorMessages' => $errorMessages
     ];
@@ -148,7 +147,11 @@ class BulkUpserter
         continue;
       }
 
-      if (is_array($value) && isset($value['id'])) {
+      // {id: 5, ...} relation objects collapse to their id, but never JSON/array-cast columns
+      if (
+        is_array($value) && isset($value['id'])
+        && !$this->model->hasCast($column, ['array', 'json', 'object', 'collection'])
+      ) {
         $normalized[$column] = $value['id'];
         continue;
       }
@@ -165,19 +168,16 @@ class BulkUpserter
 
     $value = trim($value);
 
-    // date-only
     if (strlen($value) === 10) {
       $dt = \DateTime::createFromFormat('Y-m-d', $value);
       return $dt ? $dt->format('Y-m-d') : null;
     }
 
-    // datetime with minutes
     if (strlen($value) === 16) {
       $dt = \DateTime::createFromFormat('Y-m-d H:i', str_replace('T', ' ', $value));
       return $dt ? $dt->format('Y-m-d H:i:s') : null;
     }
 
-    // datetime with seconds
     if (strlen($value) === 19) {
       $dt = \DateTime::createFromFormat('Y-m-d H:i:s', str_replace('T', ' ', $value));
       return $dt ? $dt->format('Y-m-d H:i:s') : null;

@@ -12,6 +12,7 @@ class AssetsService
   public function getDueAssetsQuery($checklistId = null)
   {
     $latestChecklistItemResult = ChecklistItemResult::select('checklist_item_id', 'asset_id', DB::raw('MAX(checked_at) as checked_at'))
+      ->where(fn($q) => $q->whereNull('period_end')->orWhereColumn('checked_at', '<=', 'period_end'))
       ->groupBy('checklist_item_id', 'asset_id');
 
     $dueCondition = DueScheduleQuery::dueCondition();

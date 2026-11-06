@@ -111,12 +111,14 @@ class ChecklistItemsController extends Controller
     });
   }
 
-  public function getOverdueCheckItems(Request $request)
+  /**
+   * Latest on-time result per checklist item for an asset.
+   * Late (appeal) rows are ignored so an appeal for an old period
+   * can't silently mark the current period as done.
+   */
+  private function latestOnTimeResults($assetId)
   {
-    $assetId = $request->input('assetId');
-    $checklistId = $request->input('checklistId');
-
-    $latestResults = DB::table('checklist_item_results')
+    return DB::table('checklist_item_results')
       ->select(
         'checklist_item_id',
         'asset_id',
@@ -124,7 +126,14 @@ class ChecklistItemsController extends Controller
         DB::raw('MAX(id) as id')
       )
       ->where('asset_id', $assetId)
+      ->where(fn($q) => $q->whereNull('period_end')->orWhereColumn('checked_at', '<=', 'period_end'))
       ->groupBy('checklist_item_id', 'asset_id');
+  }
+
+  public function getOverdueCheckItems(Request $request)
+  {
+    $assetId = $request->input('assetId');
+    $checklistId = $request->input('checklistId');
 
     $items = ChecklistItem::query()
       ->from('checklist_items as ci')
@@ -148,14 +157,13 @@ class ChecklistItemsController extends Controller
       })
       ->leftJoin('entity_checklist_item_schedules as ecs', 'ecs.checklist_item_id', '=', 'ci.id')
       ->leftJoin('schedules as s', 's.id', '=', 'ecs.schedule_id')
-      ->leftJoinSub($latestResults, 'latest', function ($join) {
+      ->leftJoinSub($this->latestOnTimeResults($assetId), 'latest', function ($join) {
         $join->on('latest.checklist_item_id', '=', 'ci.id');
       })
       ->leftJoin('checklist_item_results as cir', 'cir.id', '=', 'latest.id')
       ->leftJoin('checklist_instances as cs', 'cs.id', '=', 'cir.checklist_instance_id')
       ->where('ci.checklist_id', $checklistId)
       ->get();
-
 
     $lookback = now('Asia/Manila')->subDays(90);
 
@@ -169,7 +177,7 @@ class ChecklistItemsController extends Controller
       ]);
 
     $results = $items->flatMap(function ($item) use ($lookback, $submitted) {
-      $schedule = $item->entitySchedule?->schedule;   // already eager-loaded, no N+1
+      $schedule = $item->entitySchedule?->schedule;
       if (!$schedule) return [];
 
       try {
@@ -184,13 +192,23 @@ class ChecklistItemsController extends Controller
         ->sortByDesc(fn($p) => $p[0]->timestamp)
         ->take(5)
         ->map(fn($p) => (object) [
-          // keep your existing field mapping here, with:
+          'id'             => $item->id,
+          'item_id'        => $item->id, // checklist_items.id; the form submits it as checklist_item_id
+          'name'           => $item->name,
+          'input_type'     => $item->input_type,
+          'allowed_values' => $item->allowed_values,
+          'criteria'       => $item->criteria,
+          'schedule_id'    => $item->schedule_id,
+          'schedule_name'  => $item->schedule_name,
+          'created_by'     => $item->created_by,
+          'verified_by'    => $item->verified_by,
+          'checked_at'     => null,
           'is_no_schedule' => false,
+          'is_due'         => 0,
           'period_start'   => $p[0],
           'period_end'     => $p[1],
         ]);
     });
-
 
     $results = self::resolveEmployees($results);
     $results = $results->groupBy('item_id');
@@ -202,16 +220,6 @@ class ChecklistItemsController extends Controller
   {
     $assetId = $request->input('assetId');
     $checklistId = $request->input('checklistId');
-
-    $latestResults = DB::table('checklist_item_results')
-      ->select(
-        'checklist_item_id',
-        'asset_id',
-        DB::raw('MAX(checked_at) as checked_at'),
-        DB::raw('MAX(id) as id')
-      )
-      ->where('asset_id', $assetId)
-      ->groupBy('checklist_item_id', 'asset_id');
 
     $query =
       ChecklistItem::query()
@@ -238,7 +246,7 @@ class ChecklistItemsController extends Controller
       })
       ->leftjoin('entity_checklist_item_schedules as ecs', 'ecs.checklist_item_id', '=', 'ci.id')
       ->leftjoin('schedules as s', 's.id', '=', 'ecs.schedule_id')
-      ->leftJoinSub($latestResults, 'latest', function ($join) {
+      ->leftJoinSub($this->latestOnTimeResults($assetId), 'latest', function ($join) {
         $join->on('latest.checklist_item_id', '=', 'ci.id');
       })
       ->leftJoin('checklist_item_results as cir', 'cir.id', '=', 'latest.id')
@@ -267,7 +275,7 @@ class ChecklistItemsController extends Controller
           ->where('checklist_id', $fields['checklist_id'] ?? null)
           ->ignore(is_numeric($id) ? $id : null),
       ],
-      // might TODO: checkbox can also be used. So how can you enforced 2 values? another column for checkbox_value?
+      'criteria'       => ['required', 'string', 'max:255'],
       'input_type'     => ['required', 'string', Rule::in(['text', 'number', 'select'])],
       'allowed_values' => 'nullable|array',
       'schedule_id' => fn($id) => [

@@ -47,7 +47,7 @@ class ChecklistInstanceController extends Controller
     // group, otherwise the OR leaks and the filters below only hit one branch.
     $query->where(function ($q) use ($verified) {
       $q->where(function ($q) use ($verified) {
-        $q->where('submission_type', 'punctual')
+        $q->where(fn($q) => $q->where('submission_type', '!=', 'late')->orWhereNull('submission_type'))
           ->when($verified, fn($q) => $q->whereNotNull('verified_at'), fn($q) => $q->whereNull('verified_at'));
       })->orWhere(function ($q) use ($verified) {
         $q->where('submission_type', 'late')
@@ -118,7 +118,7 @@ class ChecklistInstanceController extends Controller
     }
 
     $updated = ChecklistInstance::whereIn('id', $ids)
-      ->where('submission_type', 'punctual')
+      ->where(fn($q) => $q->where('submission_type', '!=', 'late')->orWhereNull('submission_type'))
       ->whereNull('verified_at')
       ->update(['verified_at' => now(), 'verified_by' => $userId]);
 

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use App\Models\Chemicals;
 
@@ -16,8 +17,7 @@ class ChemicalsController extends Controller
 
     $chemicals = Chemicals::query()
       ->when($search, function ($query, $search) {
-        // todo : add search for performed_by and verified_by using the name
-        $query->Where('name', 'like', "%{$search}%");
+        $query->where('name', 'like', "%{$search}%");
       })
       ->orderBy('name')
       ->paginate($perPage)
@@ -33,25 +33,24 @@ class ChemicalsController extends Controller
 
   private function validateEntry(Request $request, $id = null)
   {
-    return $request->validate([
-      'name' => 'required|string',
-      'description' => 'nullable|string',
-      Rule::unique('chemicals', 'name')->ignore($id)
-    ]);
+    return $request->validate(
+      [
+        'name' => [
+          'required',
+          'string',
+          'max:255',
+          Rule::unique('chemicals', 'name')->ignore($id),
+        ],
+        'description' => 'nullable|string',
+      ],
+      [
+        'name.unique' => 'Chemical name already exists.',
+      ]
+    );
   }
 
   public function store(Request $request)
   {
-    $exists = Chemicals::where('name', $request->name)->exists();
-
-    if ($exists) {
-      return response()->json([
-        'status' => 'error',
-        'message' => 'chemical name already exists',
-        'data' => null
-      ], 409);
-    }
-
     $validated = $this->validateEntry($request);
 
     $entry = Chemicals::create($validated);

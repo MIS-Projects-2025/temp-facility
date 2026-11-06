@@ -32,6 +32,7 @@ const ChecklistUpsert = () => {
         const formData = {
             name: checklistName,
             description: description,
+            form_control_no: formControlNo,
         };
 
         const url = isEdit

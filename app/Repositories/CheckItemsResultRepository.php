@@ -16,16 +16,15 @@ class CheckItemsResultRepository
   {
     $rankedResults = DB::table('checklist_item_results as cir2')
       ->select(
-        'cir2.asset_id',
-        'cir2.checklist_item_id',
-        'cir2.checked_at',
-        'cir2.checklist_instance_id',
-        DB::raw('ROW_NUMBER() OVER (PARTITION BY cir2.asset_id, cir2.checklist_item_id ORDER BY cir2.checked_at DESC) as rn')
+        'cir2.id',
+        DB::raw('ROW_NUMBER() OVER (PARTITION BY cir2.asset_id, cir2.checklist_item_id ORDER BY cir2.checked_at DESC, cir2.id DESC) as rn')
       )
       ->join('checklist_items as ci2', 'ci2.id', '=', 'cir2.checklist_item_id')
       ->join('check_items as ct2', 'ct2.id', '=', 'ci2.item_id')
       ->join('checklist_instances as ci', 'ci.id', '=', 'cir2.checklist_instance_id')
       ->where(fn($q) => $q->whereNotNull('ci.verified_at')->orWhereNotNull('ci.approved_at'))
+      // appeal rows describe a past period, they are not the current status
+      ->where(fn($q) => $q->whereNull('cir2.period_end')->orWhereColumn('cir2.checked_at', '<=', 'cir2.period_end'))
       ->when(!empty($checklistId), fn($q) => $q->where('ci2.checklist_id', $checklistId))
       ->when(!empty($checkItemNames), fn($q) => $q->whereIn('ct2.name', $checkItemNames));
 
@@ -33,7 +32,7 @@ class CheckItemsResultRepository
     $targetResults = DB::table(DB::raw("({$rankedResults->toSql()}) as ranked"))
       ->mergeBindings($rankedResults)
       ->where('rn', $rank)
-      ->select('asset_id', 'checklist_item_id', 'checked_at');
+      ->select('id');
 
     return ChecklistItemResult::query()
       ->with('checkedBy:EMPLOYID,FIRSTNAME,LASTNAME,JOB_TITLE')
@@ -55,9 +54,7 @@ class CheckItemsResultRepository
       ->join('assets as a', 'a.id', '=', 'cir.asset_id')
       ->leftJoin('locations as l', 'l.id', '=', 'a.location_id')
       ->joinSub($targetResults, 'latest', function ($join) {
-        $join->on('latest.asset_id', '=', 'cir.asset_id')
-          ->on('latest.checklist_item_id', '=', 'cir.checklist_item_id')
-          ->on('latest.checked_at', '=', 'cir.checked_at');
+        $join->on('latest.id', '=', 'cir.id');
       })
       ->when(!empty($checklistId), fn($q) => $q->where('ci.checklist_id', $checklistId))
       ->when(!empty($checkItemNames), fn($q) => $q->whereIn('ct.name', $checkItemNames));
@@ -109,8 +106,8 @@ class CheckItemsResultRepository
         'l.location_name as asset_location',
         'cir.checked_by',
         DB::raw("s.id IS NULL as is_no_schedule"),
-        DB::raw('ROW_NUMBER() OVER (PARTITION BY cir.asset_id, cir.checklist_item_id ORDER BY cir.checked_at ASC) as rn_asc'),
-        DB::raw('ROW_NUMBER() OVER (PARTITION BY cir.asset_id, cir.checklist_item_id ORDER BY cir.checked_at DESC) as rn_desc'),
+        DB::raw('ROW_NUMBER() OVER (PARTITION BY cir.asset_id, cir.checklist_item_id ORDER BY cir.checked_at ASC, cir.id ASC) as rn_asc'),
+        DB::raw('ROW_NUMBER() OVER (PARTITION BY cir.asset_id, cir.checklist_item_id ORDER BY cir.checked_at DESC, cir.id DESC) as rn_desc'),
       ])
       ->addSelect(DueScheduleQuery::dueRaw())
       ->join('checklist_items as ci', 'ci.id', '=', 'cir.checklist_item_id')

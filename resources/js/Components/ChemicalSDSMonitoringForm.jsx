@@ -18,6 +18,7 @@ export default function ChemicalSDSForm({
 		watch,
 		formState: { isValid },
 	} = useForm({
+		mode: "onChange",
 		defaultValues: {
 			items: chemicals.map((chem) => ({
 				chemical_id: chem.id,

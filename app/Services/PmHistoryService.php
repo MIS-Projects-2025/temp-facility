@@ -98,7 +98,8 @@ class PmHistoryService
                 'next_due_date' => $row->next_due_date?->toDateString(),
                 'last_done_date' => $row->asset?->latestPmHistory?->done_date?->toDateString(),
                 'last_performed_by' => $row->asset?->latestPmHistory?->performed_by,
-                'is_overdue'     => $row->next_due_date?->lt(today()) ?? false,
+                'is_overdue'     => $row->next_due_date !== null
+                    && $row->next_due_date->toDateString() < now('Asia/Manila')->toDateString(),
                 'schedule_name'  => $row->schedule?->schedule_name,
                 'never_done'     => is_null($row->next_due_date),
                 'interval_value' => $row->schedule?->interval_value,

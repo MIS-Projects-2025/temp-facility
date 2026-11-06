@@ -32,7 +32,7 @@ class ChecklistsService
   {
     $assetRows ??= $this->getDueAssetRows();
 
-    $checklists = Checklist::select('id', 'name', 'instruction')
+    $checklists = Checklist::select('id', 'name', 'instruction', 'form_control_no')
       ->get()
       ->keyBy(fn($item) => (string) $item->id);
 

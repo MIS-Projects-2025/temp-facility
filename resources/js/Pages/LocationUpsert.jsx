@@ -6,7 +6,7 @@ import { useToast } from "@/Hooks/useToast";
 
 const LocationUpsert = () => {
     const toast = useToast();
-    const { selectedRawPackage: selectedLocation } = usePage().props;
+    const { toBeEdit: selectedLocation } = usePage().props;
     const isEdit = !!selectedLocation;
 
     const [location, setLocation] = useState(

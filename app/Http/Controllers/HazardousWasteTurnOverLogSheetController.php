@@ -60,11 +60,18 @@ class HazardousWasteTurnOverLogSheetController extends Controller
       'requestor' => [
         'required',
         'int',
+        Rule::exists('masterlist.employee_masterlist', 'EMPLOYID'),
       ],
     ];
 
     $rows = array_map(function ($row) use ($user) {
       $row['modified_by'] = $user['emp_id'] ?? null;
+
+      $isNew = !isset($row['id']) || str_starts_with((string) $row['id'], 'new-');
+      if ($isNew && empty($row['date'])) {
+        $row['date'] = now('Asia/Manila')->toDateTimeString();
+      }
+
       return $row;
     }, $rows);
 
@@ -112,7 +119,10 @@ class HazardousWasteTurnOverLogSheetController extends Controller
     $validated = $this->validatePart($request);
 
 
-    $hazardWaste = HazardWaste::create($validated);
+    $hazardWaste = HazardWaste::create([
+      ...$validated,
+      'modified_by' => session('emp_data.emp_id'),
+    ]);
 
     return response()->json([
       'message' => 'Hazardous waste entry added successfully',
@@ -146,7 +156,10 @@ class HazardousWasteTurnOverLogSheetController extends Controller
 
     $this->validateEmployID($validated['requestor'], field: 'requestor');
 
-    $hazardWaste->update($validated);
+    $hazardWaste->update([
+      ...$validated,
+      'modified_by' => $empId,
+    ]);
 
     return response()->json([
       'message' => 'Entry updated successfully',

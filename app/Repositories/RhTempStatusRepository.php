@@ -31,7 +31,7 @@ class RhTempStatusRepository
       'location'     => $device->location,
       'temp'         => $this->extract($content, 'Temperature', 11, 5),
       'rh'           => $this->extract($content, 'Humidity', 8, 5),
-      'is_recording' => $this->extract($content, 'Recording', 10, 2) === 'Of' ? 'Off' : 'On',
+      'is_recording' => $this->extract($content, 'Recording', 10, 2) === 'On' ? 'On' : 'Off',
     ];
   }
 

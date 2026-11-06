@@ -56,6 +56,12 @@ Route::middleware([ApiAuthMiddleware::class])
             Route::delete('/bulk-delete', [LocationController::class, 'massGenocide'])
                 ->middleware(ApiPermissionMiddleware::class)
                 ->name('massGenocide');
+            Route::patch('/{id}/update', [LocationController::class, 'update'])
+                ->middleware(ApiPermissionMiddleware::class)
+                ->name('update');
+            Route::delete('/{id}/delete', [LocationController::class, 'destroy'])
+                ->middleware(ApiPermissionMiddleware::class)
+                ->name('delete');
         });
 
         Route::prefix('utility-trash')->name('utility-trash.')->group(function () {
@@ -457,9 +463,7 @@ Route::prefix('schedules')->name('schedules.')->group(
 
 Route::prefix('pm')->name('pm.')->group(
     function () {
-        Route::prefix('history')->name('history.')->group(function () {
-            
-        });
+        Route::prefix('history')->name('history.')->group(function () {});
         Route::prefix('schedule')->name('schedule.')->group(function () {
             Route::get('/', [PmHistoryController::class, 'getAllSchedule'])->name('getAllSchedule');
         });

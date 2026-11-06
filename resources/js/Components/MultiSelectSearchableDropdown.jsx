@@ -49,10 +49,6 @@ const MultiSelectSearchableDropdown = memo(
 		const [selectedOptions, setSelectedOptions] = useState(
 			defaultSelectedOptions,
 		);
-		console.log(
-			"🚀 ~ MultiSelectSearchableDropdown ~ selectedOptions:",
-			selectedOptions,
-		);
 		const [searchInput, setSearchInput] = useState("");
 		const [debouncedSearch, setDebouncedSearch] = useState("");
 

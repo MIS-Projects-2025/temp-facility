@@ -31,6 +31,15 @@ class CheckItemsResultController extends Controller
     $checkedBy = session('emp_data')['emp_id'] ?? null;
     abort_if(!$checkedBy, 401, 'Session expired. Please log in again.');
 
+    abort_unless(
+      DB::table('checklist_assets')
+        ->where('asset_id', $validated['asset_id'])
+        ->where('checklist_id', $validated['checklist_id'])
+        ->exists(),
+      422,
+      'This asset is not assigned to the selected checklist.'
+    );
+
     $assetId     = $validated['asset_id'];
     $checklistId = $validated['checklist_id'];
     $checkedAt   = Carbon::now('Asia/Manila');

@@ -12,7 +12,7 @@ const ChemicalUpsert = () => {
     const [id, setID] = useState(toBeEdit?.id || "");
     const [name, setName] = useState(toBeEdit?.name || "");
     const [description, setDescription] = useState(
-        toBeEdit?.description || null
+        toBeEdit?.description || ""
     );
 
     const {

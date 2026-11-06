@@ -17,7 +17,7 @@ class ApiPermissionMiddleware
    */
   public function handle(Request $request, Closure $next, $permission = null): Response
   {
-    $token = $request->query('key') ?? $request->bearerToken() ?? session('emp_data.token');
+    $token = session('emp_data.token') ?? $request->bearerToken() ?? $request->query('key');
     if (!$token) {
       $redirectUrl = urlencode($request->fullUrl());
       return redirect("http://192.168.20.21:8200/login?redirect={$redirectUrl}");

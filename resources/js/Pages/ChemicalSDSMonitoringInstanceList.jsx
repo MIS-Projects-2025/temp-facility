@@ -10,7 +10,7 @@ import { formatTimestamp } from "@/Utils/formatISOTimestampToDate";
 import formatPastDateTimeLabel from "@/Utils/formatPastDateTimeLabel";
 import { router, usePage } from "@inertiajs/react";
 import clsx from "clsx";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 
 const reviewResultsModalID = "checklist-instance-results-modal";
 const maxItem = 30; // all
@@ -113,7 +113,12 @@ function ChemicalSDSMonitoringInstanceList() {
 		isMultipleSelection: false,
 	});
 
+	const isMounted = useRef(false);
 	useEffect(() => {
+		if (!isMounted.current) {
+			isMounted.current = true;
+			return;
+		}
 		router.reload({
 			data: {
 				createdAtEnd: formatDateTime(filterCreateDateEnd),

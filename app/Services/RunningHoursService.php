@@ -3,6 +3,8 @@
 namespace App\Services;
 
 use Illuminate\Support\Collection;
+use App\Models\Checklist;
+use App\Repositories\CheckItemsResultRepository;
 
 class RunningHoursService
 {

@@ -146,9 +146,10 @@ class AssetsController extends Controller
 
     $columnRules = [
       'code' => fn($id) => [
-        'sometimes',
+        ...($id === null ? [] : ['sometimes']),
         'required',
         'string',
+        'max:120',
         Rule::unique('assets', 'code')
           ->ignore(is_numeric($id) ? $id : null),
       ],

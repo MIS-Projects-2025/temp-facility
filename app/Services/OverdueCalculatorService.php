@@ -60,7 +60,7 @@ class OverdueCalculatorService
       case 'week':
         // Specific day of week e.g. every Saturday
         if (!empty($daysOfWeek)) {
-          $dow   = $daysOfWeek[0]; // 0=Sun, 6=Sat (Carbon convention)
+          $dow   = (int) $daysOfWeek[0]; // 0=Sun, 6=Sat (Carbon convention)
           $start = $checkedAt->copy()->startOfDay()->dayOfWeek === $dow
             ? $checkedAt->copy()->startOfDay()
             : $checkedAt->copy()->previous($dow)->startOfDay();
@@ -75,7 +75,10 @@ class OverdueCalculatorService
       case 'month':
         // First Nth weekday of month e.g. first Monday
         if (!empty($nthWeekday) && !empty($weekdayOf)) {
-          $date  = $checkedAt->copy()->startOfMonth()->nthOfMonth($nthWeekday, $weekdayOf);
+          $date  = $checkedAt->copy()->startOfMonth()->nthOfMonth((int) $nthWeekday, ((int) $weekdayOf) % 7);
+          if (!$date) {
+            throw new \InvalidArgumentException('Nth weekday does not exist in this month.');
+          }
           $start = $date->copy()->startOfDay();
           $end   = $date->copy()->endOfDay();
           break;

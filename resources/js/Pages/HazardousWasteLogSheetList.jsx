@@ -90,6 +90,11 @@ const HazardousWasteLogSheet = () => {
 				header: () => "Requestor (empid)",
 				size: 250,
 			},
+			ReadOnlyColumns({
+				accessorKey: "date",
+				header: "Date",
+				options: { size: 180 },
+			}),
 			{
 				header: "Audit Info",
 				columns: [

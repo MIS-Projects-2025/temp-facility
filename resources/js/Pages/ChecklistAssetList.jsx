@@ -26,6 +26,10 @@ const saveChangeIDModal = "save_change__checklist_item_modal_id";
 const ChecklistAssetList = () => {
 	const { data: checklists, isLoading, fetchChecklists } = useChecklistStore();
 
+	useEffect(() => {
+		fetchChecklists();
+	}, []);
+
 	const {
 		assets: serverAssets,
 		search: serverSearch,
@@ -270,7 +274,7 @@ const ChecklistAssetList = () => {
 			data: {
 				search: searchInput,
 				perPage: maxItem,
-				page: serverAssets?.current_page,
+				page: 1,
 				checklistId: checklistId,
 			},
 			preserveState: true,

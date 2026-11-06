@@ -107,7 +107,10 @@ class DashboardController extends Controller
         });
 
         $unverifiedTotal = $pending()->count();
-        $unverifiedToday = $pending()->whereDate('created_at', today())->count();
+        $unverifiedToday = $pending()->whereBetween('created_at', [
+            now('Asia/Manila')->startOfDay()->utc(),
+            now('Asia/Manila')->endOfDay()->utc(),
+        ])->count();
 
         return Inertia::render('Dashboard', [
             'vacuum_latest_results' => $vacuum['results'],

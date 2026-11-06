@@ -20,6 +20,7 @@ export default function RestroomMonitoringForm({
 		reset,
 		formState: { isValid },
 	} = useForm({
+		mode: "onChange",
 		defaultValues: {
 			items: fixtures.map((fixture) => ({
 				fixture_id: fixture.id,

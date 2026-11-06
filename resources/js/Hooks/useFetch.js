@@ -11,7 +11,10 @@ export function useFetch(url, options = {}) {
   const abortControllerRef = useRef(null);
 
   const buildUrlWithParams = (baseUrl, params) => {
-    const query = new URLSearchParams(params).toString();
+    const clean = Object.fromEntries(
+      Object.entries(params || {}).filter(([, v]) => v !== undefined && v !== null)
+    );
+    const query = new URLSearchParams(clean).toString();
     return query ? `${baseUrl}?${query}` : baseUrl;
   };
   

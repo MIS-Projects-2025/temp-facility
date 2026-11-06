@@ -311,7 +311,7 @@ function RestroomMonitoringInstanceList() {
 					<table className="border border-base-content/10 table table-zebra w-full divide-y">
 						<thead className="">
 							<tr>
-								<th className="px-4 py-2 text-left text-sm">Chemical Name</th>
+								<th className="px-4 py-2 text-left text-sm">Restroom / Fixture</th>
 								<th className="px-4 py-2 text-left text-sm">Status</th>
 								<th className="px-4 py-2 text-left text-sm">Remarks</th>
 							</tr>
@@ -322,6 +322,10 @@ function RestroomMonitoringInstanceList() {
 									<tr key={r.id} className="">
 										<td className={clsx("px-4 py-2 text-sm")}>
 											{r?.restroom?.restroom_name || "N/A"}
+											<span className="opacity-60">
+												{" "}
+												/ {r?.fixture?.fixture_name || "—"}
+											</span>
 										</td>
 										<td className="px-4 py-2 text-sm ">{r.status || "N/A"}</td>
 										<td className="px-4 py-2 text-sm ">{r.remarks || "N/A"}</td>

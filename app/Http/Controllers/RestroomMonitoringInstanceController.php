@@ -23,6 +23,7 @@ class RestroomMonitoringInstanceController extends Controller
     $query = RestroomMonitoringInstance::with([
       'results',
       'results.restroom',
+      'results.fixture',
       'verifier:EMPLOYID,FIRSTNAME,LASTNAME,JOB_TITLE',
       'creator:EMPLOYID,FIRSTNAME,LASTNAME,JOB_TITLE',
     ]);
@@ -80,6 +81,7 @@ class RestroomMonitoringInstanceController extends Controller
     }
 
     $updated = RestroomMonitoringInstance::whereIn('id', $ids)
+      ->whereNull('verified_at')
       ->update([
         'verified_at' => now(),
         'verified_by' => $userId,
