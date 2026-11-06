@@ -13,6 +13,7 @@ class CheckItem extends Model
   protected $fillable = [
     'name',
     'description',
+    'modified_by',
   ];
 
   protected $casts = [

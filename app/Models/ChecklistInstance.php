@@ -11,7 +11,7 @@ class ChecklistInstance extends Model
   public $timestamps = false;
 
   protected $casts = [
-    'results' => 'array',
+    'approved_at' => 'datetime',
     'created_at' => 'datetime',
     'verified_at' => 'datetime',
   ];

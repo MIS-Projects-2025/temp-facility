@@ -13,6 +13,7 @@ use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use App\Services\OverdueCalculatorService;
+use Illuminate\Validation\ValidationException;
 
 class CheckItemsResultController extends Controller
 {
@@ -30,96 +31,98 @@ class CheckItemsResultController extends Controller
       'items.*.period_end'          => 'nullable|date',
     ]);
 
-    Log::info("validated: " . json_encode($validated));
+    $checkedBy = session('emp_data')['emp_id'] ?? null;
+    abort_if(!$checkedBy, 401, 'Session expired. Please log in again.');
 
     $assetId     = $validated['asset_id'];
     $checklistId = $validated['checklist_id'];
-    $checkedBy   = session('emp_data')['emp_id'] ?? null;
-    $checkedAt = Carbon::now('Asia/Manila');
+    $checkedAt   = Carbon::now('Asia/Manila');
+    $rows        = collect($validated['items']);
 
-    $filteredItems = array_filter(
-      $validated['items'],
-      fn($item) => isset($item['item_status']) && trim($item['item_status']) !== ''
-    );
-
-    $itemIds = array_column($filteredItems, 'checklist_item_id');
-
-    $schedulesByItemId = ChecklistItem::with('entitySchedule.schedule')
-      ->whereIn('id', $itemIds)
-      ->get()
-      ->keyBy('id')
-      ->map(fn($checklistItem) => $checklistItem->entitySchedule->schedule);
-
-    DB::listen(fn($q) => Log::info($q->sql . ' -- ' . json_encode($q->bindings)));
-
-    $derivedItems = array_map(function ($item) use (
-      $assetId,
-      $checkedBy,
-      $checkedAt,
-      $schedulesByItemId
-    ) {
-      $schedule          = $schedulesByItemId[$item['checklist_item_id']];
-      [$start, $end]     = OverdueCalculatorService::derivePeriod($checkedAt, $schedule->toArray());
-
-      Log::info("period end " . json_encode(isset($item['period_end'])
-        ? Carbon::parse($item['period_end'])
-        : $end->copy()->utc()));
-
-      Log::info("checkedAt " . json_encode($checkedAt));
-
-      return [
-        'asset_id'              => $assetId,
-        'checked_by'            => $checkedBy,
-        'checklist_item_id'     => $item['checklist_item_id'],
-        'item_status'           => $item['item_status'],
-        'remarks'               => $item['remarks'] ?? null,
-        'period_start' => isset($item['period_start'])
-          ? Carbon::parse($item['period_start'])
-          : $start->copy()->utc(),
-        'period_end' => isset($item['period_end'])
-          ? Carbon::parse($item['period_end'])
-          : $end->copy()->utc(),
-      ];
-    }, $filteredItems);
-
-    $isLate = collect($derivedItems)->some(
-      fn($item) => $checkedAt->gt(Carbon::parse($item['period_end']))
-    );
-
-    $checklistInstance = ChecklistInstance::create([
-      'checklist_id' => $checklistId,
-      'created_by'   => $checkedBy,
-      'notes'        => $validated['notes'] ?? null,
-      'submission_type' => $isLate ? 'late' : 'punctual',
-    ]);
-
-    if ($isLate) {
-      $config = DB::table('checklist_approval_config')
-        ->where(function ($q) {
-          $q->whereNull('instance_type')
-            ->orWhere('instance_type', 'checklist');
-        })
-        ->get();
-
-      $approverRows = $config->map(fn($c) => [
-        'instance_id'   => $checklistInstance->id,
-        'instance_type' => 'checklist',
-        'user_id'       => $c->user_id,
-        'level'         => $c->level,
-        'status'        => 'pending',
-      ])->toArray();
-
-      DB::table('checklist_approvers')->insert($approverRows);
+    if ($rows->contains(fn($i) => blank($i['item_status'] ?? null) && filled($i['remarks'] ?? null))) {
+      throw ValidationException::withMessages([
+        'items' => 'Some items have remarks but no status. Fill in the status or clear the remarks.',
+      ]);
     }
 
-    $insertData = array_map(
-      fn($item) => array_merge($item, ['checklist_instance_id' => $checklistInstance->id]),
-      $derivedItems
-    );
+    $answered = $rows->filter(fn($i) => filled($i['item_status'] ?? null))->values();
+    if ($answered->isEmpty()) {
+      throw ValidationException::withMessages(['items' => 'Nothing to submit: no item has a status.']);
+    }
 
-    ChecklistItemResult::insert(array_values($insertData));
+    $itemIds = $answered->pluck('checklist_item_id')->unique()->values();
+    $checklistItems = ChecklistItem::with('entitySchedule.schedule')
+      ->where('checklist_id', $checklistId)
+      ->whereIn('id', $itemIds)
+      ->get()->keyBy('id');
 
-    return response()->json(['status' => 'ok']);
+    if ($checklistItems->count() !== $itemIds->count()) {
+      throw ValidationException::withMessages(['items' => 'Some items do not belong to this checklist.']);
+    }
+
+    $derived = $answered->map(function ($item) use ($assetId, $checkedBy, $checkedAt, $checklistItems) {
+      $schedule = $checklistItems[$item['checklist_item_id']]->entitySchedule?->schedule;
+
+      if (!empty($item['period_start']) && !empty($item['period_end'])) {
+        // overdue/appeal row: period comes from the overdue list
+        $start = Carbon::parse($item['period_start']);
+        $end   = Carbon::parse($item['period_end']);
+      } elseif ($schedule) {
+        [$start, $end] = OverdueCalculatorService::derivePeriod($checkedAt, $schedule->toArray());
+        if (!$start || !$end) {
+          throw ValidationException::withMessages(['items' => 'No schedule window is open for one of the items right now.']);
+        }
+        $start = $start->copy()->utc();
+        $end   = $end->copy()->utc();
+      } else {
+        $start = $end = null; // no-schedule item
+      }
+
+      return [
+        'asset_id'          => $assetId,
+        'checked_by'        => $checkedBy,
+        'checklist_item_id' => $item['checklist_item_id'],
+        'item_status'       => trim($item['item_status']),
+        'remarks'           => $item['remarks'] ?? null,
+        'period_start'      => $start,
+        'period_end'        => $end,
+      ];
+    });
+
+    $isLate = $derived->contains(fn($r) => $r['period_end'] && $checkedAt->gt($r['period_end']));
+
+    $instance = DB::transaction(function () use ($checklistId, $checkedBy, $validated, $isLate, $derived) {
+      $instance = ChecklistInstance::create([
+        'checklist_id'    => $checklistId,
+        'created_by'      => $checkedBy,
+        'notes'           => $validated['notes'] ?? null,
+        'submission_type' => $isLate ? 'late' : 'punctual',
+      ]);
+
+      if ($isLate) {
+        $approverRows = DB::table('checklist_approval_config')
+          ->where(fn($q) => $q->whereNull('instance_type')->orWhere('instance_type', 'checklist'))
+          ->get()
+          ->map(fn($c) => [
+            'instance_id'   => $instance->id,
+            'instance_type' => 'checklist',
+            'user_id'       => $c->user_id,
+            'level'         => $c->level,
+            'status'        => 'pending',
+          ])->all();
+
+        abort_if(empty($approverRows), 422, 'No approvers are configured for late submissions.');
+        DB::table('checklist_approvers')->insert($approverRows);
+      }
+
+      ChecklistItemResult::insert(
+        $derived->map(fn($r) => $r + ['checklist_instance_id' => $instance->id])->all()
+      );
+
+      return $instance;
+    });
+
+    return response()->json(['status' => 'ok', 'instance_id' => $instance->id]);
   }
 
   public function index(Request $request)

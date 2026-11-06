@@ -5,17 +5,11 @@ namespace App\Http\Controllers;
 use App\Models\Checklist;
 use App\Traits\ParseRequestTrait;
 use Illuminate\Http\Request;
-use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Carbon\Carbon;
-use App\Models\AssetPmSchedule;
-use Illuminate\Database\Eloquent\ModelNotFoundException;
-use Illuminate\Database\QueryException;
 use App\Traits\MassDeletesByIds;
-use Exception;
 use Illuminate\Support\Facades\Log;
 use App\Models\ChecklistInstance;
-use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\DB;
 
 class ChecklistInstanceController extends Controller
@@ -25,6 +19,20 @@ class ChecklistInstanceController extends Controller
 
   public function index(Request $request)
   {
+    $verified = $request->boolean('verified');
+
+    $startInput = $request->input('createdAtStart') ?: $request->input('created_at_start');
+    $endInput   = $request->input('createdAtEnd')   ?: $request->input('created_at_end');
+    $start = $startInput ? Carbon::parse($startInput) : null;
+    $end   = $endInput   ? Carbon::parse($endInput)   : null;
+
+    $raw = $request->input('checklistIds');
+    $checklistIDs = collect(is_array($raw) ? $raw : explode(',', (string) $raw))
+      ->filter(fn($v) => $v !== '' && $v !== null)
+      ->map(fn($v) => (int) $v)->unique()->values()->all();
+
+    $perPage = $request->integer('perPage', 30);
+
     $query = ChecklistInstance::with([
       'results.asset.location',
       'results.item.item',
@@ -34,56 +42,30 @@ class ChecklistInstanceController extends Controller
       'approver:EMPLOYID,FIRSTNAME,LASTNAME,JOB_TITLE',
       'allApprovers.employee:EMPLOYID,FIRSTNAME,LASTNAME,JOB_TITLE',
     ])->withCount('lateResults');
-    $verified = $request->filled('verified')
-      ? filter_var($request->verified, FILTER_VALIDATE_BOOLEAN)
-      : false;
-    $hasCreatedAtStart = $request->filled('created_at_start') ? Carbon::parse($request->created_at_start) : null;
-    $hasCreatedAtEnd = $request->filled('created_at_end') ? Carbon::parse($request->created_at_end) : null;
-    $hasChecklistIds = $request->filled('checklistIds');
-    $checklistIDs = $this->parseChecklists($request, 'checklistIds');
-    $perPage = $request->integer('perPage', 30);
-    $allChecklist = Checklist::all();
 
-    $user = session('emp_data');
-    $userId = $user['emp_id'] ?? null;
-
-    $totalEntries = $query->count();
-
-    $query->when($verified, function ($q) {
-      // Resolved: punctual verified OR late approved
-      $q->where(function ($q) {
-        $q->where('submission_type', 'punctual')->whereNotNull('verified_at');
-      })->orWhere(function ($q) {
-        $q->where('submission_type', 'late')->whereNotNull('approved_at');
+    // Resolved = punctual+verified OR late+approved. Must be wrapped in its own
+    // group, otherwise the OR leaks and the filters below only hit one branch.
+    $query->where(function ($q) use ($verified) {
+      $q->where(function ($q) use ($verified) {
+        $q->where('submission_type', 'punctual')
+          ->when($verified, fn($q) => $q->whereNotNull('verified_at'), fn($q) => $q->whereNull('verified_at'));
+      })->orWhere(function ($q) use ($verified) {
+        $q->where('submission_type', 'late')
+          ->when($verified, fn($q) => $q->whereNotNull('approved_at'), fn($q) => $q->whereNull('approved_at'));
       });
-    })
-      ->when(!$verified, function ($q) {
-        // Unresolved: punctual not verified OR late not approved
-        $q->where(function ($q) {
-          $q->where('submission_type', 'punctual')->whereNull('verified_at');
-        })->orWhere(function ($q) {
-          $q->where('submission_type', 'late')->whereNull('approved_at');
-        });
-      });
-    // $query->when($verified, fn($q) => $q->whereNotNull('verified_at'))
-    //   ->when(!$verified, fn($q) => $q->whereNull('verified_at'));
+    });
 
-    if ($hasCreatedAtStart && $hasCreatedAtEnd) {
-      $hasCreatedAtStart = Carbon::parse($request->created_at_start);
-      $hasCreatedAtEnd   = Carbon::parse($request->created_at_end);
-      $query->whereBetween('created_at', [$hasCreatedAtStart, $hasCreatedAtEnd]);
+    if ($start && $end) {
+      $query->whereBetween('created_at', [$start, $end]);
     }
-
-    if ($hasChecklistIds) {
+    if ($checklistIDs) {
       $query->whereIn('checklist_id', $checklistIDs);
     }
 
-    $instances = $query->orderByDesc('created_at')
-      ->paginate($perPage);
-
-    Log::info("Instances: " . json_encode($instances));
+    $instances = $query->orderByDesc('created_at')->paginate($perPage);
 
     $instanceIds = $instances->pluck('id');
+    $userId = session('emp_data')['emp_id'] ?? null;
 
     // User's pending approver rows for this page
     $userApproverRows = DB::table('checklist_approvers')
@@ -124,29 +106,20 @@ class ChecklistInstanceController extends Controller
       return $instance;
     });
 
-    if ($request->wantsJson()) {
-      return response()->json([
-        'checklistInstance' => $instances,
-        'verified' => $verified,
-        'createdAtStart' => $hasCreatedAtStart ?? null,
-        'createdAtEnd' => $hasCreatedAtEnd ?? null,
-        'checklistIds' => $hasChecklistIds ? $checklistIDs : [],
-        'checklists' => $allChecklist,
-        'perPage' => $perPage,
-        'totalEntries' => $totalEntries,
-      ]);
-    }
-
-    return Inertia::render('ChecklistInstanceList', [
+    $payload = [
       'checklistInstance' => $instances,
-      'verified' => $verified,
-      'createdAtStart' => $hasCreatedAtStart ?? null,
-      'createdAtEnd' => $hasCreatedAtEnd ?? null,
-      'checklistIds' => $hasChecklistIds ? $checklistIDs : [],
-      'checklists' => $allChecklist,
-      'perPage' => $perPage,
-      'totalEntries' => $totalEntries,
-    ]);
+      'verified'          => $verified,
+      'createdAtStart'    => $start,
+      'createdAtEnd'      => $end,
+      'checklistIds'      => $checklistIDs,
+      'checklists'        => Checklist::all(),
+      'perPage'           => $perPage,
+      'totalEntries'      => ChecklistInstance::count(),
+    ];
+
+    return $request->wantsJson()
+      ? response()->json($payload)
+      : Inertia::render('ChecklistInstanceList', $payload);
   }
 
   public function verify(Request $request)

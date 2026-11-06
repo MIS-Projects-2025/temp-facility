@@ -10,17 +10,21 @@ use Carbon\Carbon;
 
 class OverdueCalculatorService
 {
+  private static function normalizeJson($v)
+  {
+    return is_string($v) ? json_decode($v, true) : $v;
+  }
 
   public static function derivePeriod(Carbon $checkedAt, array $schedule): array
   {
     $type        = $schedule['recurrence_type']; // 'interval' or 'daily'
     $unit        = $schedule['interval_unit'];   // 'hour', 'day', 'week', 'month', 'year'
-    $value       = $schedule['interval_value'];
-    $daysOfWeek  = $schedule['days_of_week'];    // json, e.g. [6]
-    $daysOfMonth = $schedule['days_of_month'];   // json, e.g. [14]
+    $value       = (int) $schedule['interval_value'];
+    $daysOfWeek  = self::normalizeJson($schedule['days_of_week']);    // json, e.g. [6]
+    $daysOfMonth = self::normalizeJson($schedule['days_of_month']);   // json, e.g. [14]
     $nthWeekday  = $schedule['nth_weekday'];     // e.g. 1 (first)
     $weekdayOf   = $schedule['weekday_of_month']; // e.g. 1 (Monday)
-    $dayTimes    = $schedule['day_times'];       // json, e.g. ["00:00", "12:00"]
+    $dayTimes    = self::normalizeJson($schedule['day_times']);       // json, e.g. ["00:00", "12:00"]
 
     // Twice a day — check day_times first before anything else
     if ($type === 'daily' && !empty($dayTimes)) {
@@ -80,7 +84,7 @@ class OverdueCalculatorService
         // Specific day of month e.g. every 14th
         if (!empty($daysOfMonth)) {
           $day   = $daysOfMonth[0];
-          $start = $checkedAt->copy()->setDay($day)->startOfDay();
+          $start = $checkedAt->copy()->startOfMonth()->addDays(min((int) $day, $checkedAt->daysInMonth) - 1);
           $end   = $start->copy()->endOfDay();
           break;
         }
@@ -101,6 +105,8 @@ class OverdueCalculatorService
           throw new \InvalidArgumentException(
             "Multi-year schedules require an anchor date. Handle separately."
           );
+        } else {
+          throw new \InvalidArgumentException("Unknown interval_value: {$value}");
         }
         break;
 
@@ -116,17 +122,13 @@ class OverdueCalculatorService
 
     // Quarterly — override the monthly generic case
     if ($unit === 'month' && $value === 3) {
-      $quarter = (int) ceil($checkedAt->month / 3);
-      $startMonth = ($quarter - 1) * 3 + 1;
-      $start = $checkedAt->copy()->setMonth($startMonth)->startOfMonth();
-      $end   = $start->copy()->addMonths(3)->subSecond();
+      $start = $checkedAt->copy()->startOfQuarter();
+      $end   = $checkedAt->copy()->endOfQuarter();
     }
 
     // Semi-annually
     if ($unit === 'month' && $value === 6) {
-      $start = $checkedAt->month <= 6
-        ? $checkedAt->copy()->setMonth(1)->startOfMonth()
-        : $checkedAt->copy()->setMonth(7)->startOfMonth();
+      $start = $checkedAt->copy()->startOfYear()->addMonths($checkedAt->month <= 6 ? 0 : 6);
       $end = $start->copy()->addMonths(6)->subSecond();
     }
 

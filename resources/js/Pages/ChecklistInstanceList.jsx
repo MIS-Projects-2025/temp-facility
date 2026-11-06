@@ -390,11 +390,7 @@ function ChecklistInstanceList() {
 	const isMounted = useRef(false);
 
 	useEffect(() => {
-		if (!isMounted.current) {
-			isMounted.current = true;
-			return;
-		}
-
+		if (!isMounted.current) { isMounted.current = true; return; }
 		router.reload({
 			data: {
 				verified: filterVerified,
@@ -402,16 +398,12 @@ function ChecklistInstanceList() {
 				createdAtEnd: formatDateTime(filterCreateDateEnd),
 				checklistIds: selectedChecklist.join(","),
 				perPage: serverPerPage,
+				page: 1,
 			},
 			preserveState: true,
 			preserveScroll: true,
 		});
-	}, [
-		filterVerified,
-		filterCreateDateStart,
-		filterCreateDateEnd,
-		selectedChecklist,
-	]);
+	}, [filterVerified, filterCreateDateStart, filterCreateDateEnd, selectedChecklist]);
 
 	const goToPage = (page) => {
 		router.reload({
@@ -495,7 +487,7 @@ function ChecklistInstanceList() {
 			<div className="flex gap-2 sticky right-0">
 				<CancellableActionButton
 					abort={mutateCancel}
-					refetch={handleVerify}
+					refetch={() => handleVerify()}
 					loading={isMutateLoading}
 					buttonText="verify"
 					loadingMessage="Verifying..."
@@ -638,7 +630,7 @@ function ChecklistInstanceList() {
 
 							{processed?.length === 0 && (
 								<tr>
-									<td colSpan="5" className="px-4 py-2 text-sm text-center">
+									<td colSpan="6" className="px-4 py-2 text-sm text-center">
 										No items
 									</td>
 								</tr>

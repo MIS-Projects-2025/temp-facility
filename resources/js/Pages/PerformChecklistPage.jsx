@@ -21,6 +21,7 @@ const maxItem = -1; // all
 
 const PerformChecklistPage = () => {
 	const { checklistsOverview } = usePage().props;
+	const [formVersion, setFormVersion] = useState(0);
 
 	// const { data: checklistsOverview, isLoading, fetchChecklists } = useChecklistStore();
 	console.log("🚀 ~ PerformChecklistPage ~ checklists:", checklistsOverview);
@@ -77,24 +78,24 @@ const PerformChecklistPage = () => {
 	};
 
 	useEffect(() => {
-		fetchChecklistItems({
-			assetId: selectedAssets[0]?.id,
-			checklistId: selectedChecklist?.id,
-		});
-		fetchOverdueChecklistItems({
-			assetId: selectedAssets[0]?.id,
-			checklistId: selectedChecklist?.id,
-		});
-	}, [selectedAssets]);
+		const assetId = selectedAssets[0]?.id;
+		const checklistId = selectedChecklist?.id;
+		if (!assetId || !checklistId) return;
+		fetchChecklistItems({ assetId, checklistId });
+		fetchOverdueChecklistItems({ assetId, checklistId });
+	}, [selectedAssets, selectedChecklist?.id]);
 
 	const onSubmit = () => {
-		fetchAssets({
-			search: assetSearchInput,
-			checklistId: selectedChecklist?.id,
-			perPage: maxItem,
-		});
-		router.reload();
+		const assetId = selectedAssets[0]?.id;
+		const checklistId = selectedChecklist?.id;
+		fetchAssets({ search: assetSearchInput, checklistId, perPage: maxItem });
+		fetchChecklistItems({ assetId, checklistId });
+		fetchOverdueChecklistItems({ assetId, checklistId });
+		router.reload({ only: ["checklistsOverview"] });
+		setFormVersion((v) => v + 1);
 	};
+
+	const isFormLoading = isLoadingChecklistItems || isLoadingOverdueChecklistItems;
 
 	const customChecklistListStyle = (option) => {
 		const { value, label } = option || {};
@@ -311,20 +312,25 @@ const PerformChecklistPage = () => {
 			</div>
 
 			<div className="flex-1 flex flex-col h-[calc(100vh-7rem)] bg-base-100 p-4 shadow-2xl">
-				{selectedChecklist &&
-					selectedAssets?.length > 0 &&
-					checklistItems?.length > 0 && (
-						<ChecklistItemsForm
-							assetId={selectedAssets[0]?.id}
-							checklist={selectedChecklist}
-							items={checklistItems}
-							overdueItems={overdueChecklistItems}
-							isItemsLoading={isLoadingChecklistItems}
-							// onValid={setIsFormFilled}
-							onAnyFilled={setIsFormFilled}
-							onSubmit={onSubmit}
-						/>
-					)}
+				{selectedChecklist && selectedAssets?.length > 0 &&
+					(isFormLoading ? (
+						<div className="w-full h-100 skeleton flex justify-center items-center">
+							<span className="loading loading-spinner"></span>
+						</div>
+					) : (
+						checklistItems?.length > 0 && (
+							<ChecklistItemsForm
+								key={`${selectedChecklist.id}-${selectedAssets[0]?.id}-${formVersion}`}
+								assetId={selectedAssets[0]?.id}
+								checklist={selectedChecklist}
+								items={checklistItems}
+								overdueItems={overdueChecklistItems}
+								onAnyFilled={setIsFormFilled}
+								onSubmit={onSubmit}
+							/>
+						)
+					)
+				)}
 			</div>
 		</div>
 	);
