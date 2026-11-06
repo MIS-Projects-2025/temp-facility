@@ -55,7 +55,7 @@ export default function NavLinks({ isCollapse }) {
 				isIconOnly={isCollapse}
 			/>
 
-			// deprecated, it has it's own app. The business rules is now stale here.
+			{/* deprecated, it has it's own app. The business rules is now stale here. */}
 			{/* <SidebarLink
 				href={route("rh-temp-dashboard")}
 				label="RH Temp Dashboard"
